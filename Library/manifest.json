@@ -8,7 +8,9 @@
         "Rhythm": 1,
         "Music": 0.8,
         "Precision": 0.5
-      }
+      },
+      "icon": "🥁",
+      "description": "Tap the lanes in time with the falling notes and keep your combo alive."
     },
     {
       "id": "dodge",
@@ -18,7 +20,9 @@
         "Reflex": 0.6,
         "Racing": 0.7,
         "Strategy": 0.2
-      }
+      },
+      "icon": "🏎️",
+      "description": "Drag to steer, grab the coins and dodge the blocks. Hold for a shield."
     },
     {
       "id": "lights-out",
@@ -28,7 +32,9 @@
         "Puzzle": 1,
         "Strategy": 0.5,
         "Minimal": 0.4
-      }
+      },
+      "icon": "💡",
+      "description": "Tap a light to flip it and its neighbours. Turn them all off to win."
     },
     {
       "id": "memory-flash",
@@ -38,7 +44,9 @@
         "Memory": 1,
         "Puzzle": 0.3,
         "Minimal": 0.2
-      }
+      },
+      "icon": "🧠",
+      "description": "Watch the pads light up, then repeat the pattern. Three rounds, each one longer."
     },
     {
       "id": "pop",
@@ -48,7 +56,9 @@
         "Reflex": 1,
         "Precision": 0.7,
         "Arcade": 0.3
-      }
+      },
+      "icon": "🎯",
+      "description": "Tap the targets before they fade. Clear 12 pops in 15 seconds; hold for a bomb."
     }
   ]
 }

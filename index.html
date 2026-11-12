@@ -14,19 +14,36 @@
     <div id="gest" aria-label="Game surface: tap, hold, drag. Flick up or down to switch games."></div>
     <div id="bar"><i></i></div>
     <div id="sc"></div>
+    <button id="hm" title="Menu: Back to Feed" aria-label="Menu: Back to Feed">☰</button>
+    
     <div id="rail">
       <button id="lk" title="Like" aria-label="Like">♥</button>
       <button id="dl" title="Not for me" aria-label="Not for me">✕</button>
-      <button id="pf" title="Taste profile" aria-label="Taste profile">◔</button>
-      <button id="sp" title="Creator API" aria-label="Creator API">{ }</button>
     </div>
+
     <div id="cap"></div>
     <div id="end" hidden>
       <h2 id="etx"></h2>
       <p id="esub"></p><button id="rp">Replay</button><button id="nx">Next game</button>
     </div>
-    <div id="sheet" hidden></div>
     <div id="toast"></div>
+
+    <section id="home" aria-label="Game Feed" hidden>
+      <nav id="side" aria-label="Panels">
+        <button id="feedBtn" title="Game Feed" aria-label="Game Feed"><b>⌂</b><span>Feed</span></button>
+        <button id="pf" title="Taste Profile" aria-label="Taste Profile"><b>◔</b><span>Taste</span></button>
+        <button id="sp" title="Creator API" aria-label="Creator API"><b>{ }</b><span>API</span></button>
+      </nav>
+      <div id="main">
+        <header>
+          <h1>PolyByte</h1>
+          <p id="sub">Loading the library…</p>
+          <button id="pl" disabled>▶ Play Random</button>
+        </header>
+        <div id="list" role="list"><p class="note">Loading…</p></div>
+        <div id="panel" hidden></div>
+      </div>
+    </section>
   </div>
 
   <script>
@@ -46,15 +63,51 @@
     /* ---- Taste profile: 20 independent interest scores, 0–100, non-zero-sum ---- */
     const DIMS = ['Reflex', 'Precision', 'Rhythm', 'Memory', 'Puzzle', 'Strategy', 'Racing', 'Arcade', 'Retro', 'Neon', 'Cosmic', 'Nature', 'Food', 'Animals', 'Horror', 'Cozy', 'Sports', 'Music', 'Humor', 'Minimal'];
     const IDX = Object.fromEntries(DIMS.map((d, i) => [d, i]));
+    const TASTE_SCORE_MIN = 0, TASTE_SCORE_MAX = 100, TASTE_INITIAL_SCORE = 50, TASTE_LEARNING_RATE = 14;
+    const TASTE_COMPLETION_WEIGHT = .5, TASTE_DWELL_WEIGHT = .3, TASTE_REPLAY_WEIGHT = .2, TASTE_REPLAY_CAP = 3, TASTE_FULL_DWELL = 1;
+    const TASTE_EARLY_EXIT_MS = 2000, TASTE_EARLY_EXIT_SIGNAL = -.6, TASTE_NEUTRAL_IMPACT = .4, TASTE_SIGNAL_SCALE = 2;
+    const TASTE_LIKE_BONUS = .5, TASTE_DISLIKE_PENALTY = .8, TASTE_SIGNAL_MIN = -1, TASTE_SIGNAL_MAX = 1;
+    const TASTE_STORAGE_KEY = 'polybyte.taste-profile.v1';
     class TasteProfile {
-      constructor() {this.v = new Float32Array(20).fill(50)}
-      // tags: Float32Array(20) of 0..1 weights; s: signal -1..1. Each dimension moves on its own.
-      update(tags, s, lr = 14) {for (let i = 0; i < 20; i++)if (tags[i] > 0) this.v[i] = cl(this.v[i] + lr * tags[i] * s, 0, 100)}
-      affinity(tags) {let a = 0, w = 0; for (let i = 0; i < 20; i++) {a += tags[i] * this.v[i]; w += tags[i]} return w ? a / w : 50}
+      constructor() {this.v = new Float32Array(DIMS.length).fill(TASTE_INITIAL_SCORE)}
+      // Each tagged interest moves by learning rate × tag weight × feedback signal, clamped to the score range.
+      update(tags, signal) {for (let i = 0; i < DIMS.length; i++)if (tags[i] > 0) this.v[i] = cl(this.v[i] + TASTE_LEARNING_RATE * tags[i] * signal, TASTE_SCORE_MIN, TASTE_SCORE_MAX)}
+      // A game's affinity is the tag-weighted average of the matching interest scores.
+      affinity(tags) {let a = 0, w = 0; for (let i = 0; i < DIMS.length; i++) {a += tags[i] * this.v[i]; w += tags[i]} return w ? a / w : TASTE_INITIAL_SCORE}
     }
     const profile = new TasteProfile(), metrics = new Map(), log = [];
+    let tasteStorageAvailable = true;
+    function loadTasteProfile() {
+      try {
+        const saved = localStorage.getItem(TASTE_STORAGE_KEY);
+        if (saved === null) return;
+        let values;
+        try {values = JSON.parse(saved)}
+        catch (e) {console.warn('Ignoring malformed saved Taste profile.', e); return}
+        if (!Array.isArray(values) || values.length !== DIMS.length ||
+            values.some(v => typeof v !== 'number' || !Number.isFinite(v) || v < TASTE_SCORE_MIN || v > TASTE_SCORE_MAX)) {
+          console.warn('Ignoring invalid saved Taste profile: expected one score from 0 to 100 per interest.');
+          return;
+        }
+        profile.v.set(values);
+      }
+      catch (e) {
+        tasteStorageAvailable = false;
+        console.warn('Unable to access the saved Taste profile.', e);
+        toast('Taste profile could not be loaded locally.');
+      }
+    }
+    function saveTasteProfile() {
+      if (!tasteStorageAvailable) return;
+      try {localStorage.setItem(TASTE_STORAGE_KEY, JSON.stringify(Array.from(profile.v)))}
+      catch (e) {
+        tasteStorageAvailable = false;
+        console.warn('Unable to save the Taste profile locally.', e);
+        toast('Taste profile could not be saved locally.');
+      }
+    }
     const M = id => {if (!metrics.has(id)) metrics.set(id, {plays: 0, replays: 0, bestCompletion: 0, dwellMs: 0, errors: 0}); return metrics.get(id)};
-    const L = m => {log.unshift(((performance.now() / 1000) | 0) + 's ' + m); if (log.length > 40) log.pop(); if (sheet === 'prof') renderPanel()};
+    const L = m => {log.unshift(((performance.now() / 1000) | 0) + 's ' + m); if (log.length > 40) log.pop(); if (panel === 'prof') renderPanel()};
 
     /* ---- Catalog + router (infinite: variants are generated on demand) ---- */
     const THEMES = [
@@ -63,8 +116,8 @@
       {n: 'Neon', h: 180, t: {Neon: 1, Rhythm: .5, Racing: .4}}, {n: 'Spooky', h: 285, t: {Horror: 1, Humor: .3, Memory: .2}},
       {n: 'Sports', h: 10, t: {Sports: 1, Racing: .5, Precision: .4}}, {n: 'Zen', h: 200, t: {Minimal: 1, Cozy: .6, Puzzle: .3}}];
     let seq = 0, recent = [];
-    function variant() {
-      const base = pick(Object.keys(BASES)), th = pick(THEMES), tags = new Float32Array(20);
+    function variant(b) {
+      const base = b || pick(Object.keys(BASES)), th = pick(THEMES), tags = new Float32Array(20);
       for (const [k, w] of Object.entries(BASES[base].t)) tags[IDX[k]] = w;
       for (const [k, w] of Object.entries(th.t)) tags[IDX[k]] = Math.max(tags[IDX[k]], w);
       return {id: 'g' + (++seq), base, theme: th, seed: (Math.random() * 1e9) | 0, tags, title: BASES[base].title + ' · ' + th.n};
@@ -99,7 +152,7 @@ addEventListener('message',function(e){if(e.source!==P)return;var m=e.data||{};
  }catch(err){fail(err)}});
 })();`;
 
-    /* ---- Creator contract (shown to creators in the { } sheet) ---- */
+    /* ---- Creator contract (shown to creators in the { } panel) ---- */
     const SPEC = `CREATOR API v1 – micro-game contract
 
 Constraints
@@ -133,17 +186,18 @@ Wire format (handled by the injected shim; creators never touch it)
 
     /* ---- Embedded compliant micro-games (creator template = Pop Rush) ---- */
     /* ---- Library loader: Library/manifest.json lists games; each game is its own HTML file ---- */
-    const LIB = 'Library/'; let BASES = {}, GAMES = {};
+    const LIB = 'Library/'; let BASES = {}, GAMES = {}, LIST = [];
     async function loadLibrary() {
       const man = await (await fetch(LIB + 'manifest.json')).json();
       await Promise.all(man.games.map(async gm => {
         try {
           const r = await fetch(LIB + gm.file); if (!r.ok) throw new Error(r.status);
           GAMES[gm.id] = await r.text();
-          BASES[gm.id] = {title: gm.title, t: Object.fromEntries(Object.entries(gm.tags || {}).filter(([k]) => k in IDX))}
+          BASES[gm.id] = {title: gm.title, icon: gm.icon, desc: gm.description, t: Object.fromEntries(Object.entries(gm.tags || {}).filter(([k]) => k in IDX))}
         }
         catch (e) {console.warn('Skipped library game', gm.id, e)}
       }));
+      LIST = man.games.filter(gm => BASES[gm.id]); // keep manifest order for the Feed
       if (!Object.keys(BASES).length) throw new Error('Library is empty');
     }
 
@@ -153,7 +207,7 @@ Wire format (handled by the injected shim; creators never touch it)
     }
 
     /* ---- Feed: slots for idx-1 / idx / idx+1, all preloaded; only idx is ticked ---- */
-    const feed = $('#feed'); let idx = 0, queue = [], slots = new Map(), busy = false, sheet = '';
+    const feed = $('#feed'); let idx = 0, queue = [], slots = new Map(), busy = false, panel = '', view = 'home'; // view: 'home' (Feed page) | 'play'
     const send = (s, type, d) => {if (s.fr && s.fr.contentWindow) s.fr.contentWindow.postMessage({sdk: 1, type, ...d}, '*')};
 
     function ensure(k) {if (k < 0) return; while (queue.length <= k) queue.push(route()); if (!slots.has(k)) slots.set(k, mkSlot(k))}
@@ -184,7 +238,7 @@ Wire format (handled by the injected shim; creators never touch it)
       // 'loading': READY handler starts it because s.i===idx
     }
     function go(n) {
-      if (busy) return; const ni = idx + n;
+      if (busy || view !== 'play') return; const ni = idx + n;
       if (ni < 0) {toast('This is the first game'); return }
       busy = true; leave(slots.get(idx)); idx = ni; layout(); activate(slots.get(idx));
       setTimeout(() => busy = false, 420);
@@ -208,7 +262,6 @@ Wire format (handled by the injected shim; creators never touch it)
         $('#etx').textContent = s.why === 'timeout' ? 'Time’s up' : r.completionPercent >= 100 ? 'Cleared!' : 'Game over';
         $('#esub').textContent = 'Score ' + Math.round(r.score) + ' · ' + Math.round(r.completionPercent) + '% complete';
         showEnd(1);
-        s.at = setTimeout(() => {if (idx === s.i && s.state === 'ended') go(1)}, 4500);
       }
     }
     function replay() {
@@ -221,21 +274,32 @@ Wire format (handled by the injected shim; creators never touch it)
       clearTimeout(s.lt); clearTimeout(s.et); clearTimeout(s.at);
       if (s.fr) {s.fr.remove(); s.fr = null}
       s.state = 'dead'; M(s.v.id).errors++; L('killed ' + s.v.title + ': ' + why);
-      if (s.i === idx) {showEnd(0); toast('Game stopped (' + why + '). Skipping…'); setTimeout(() => {if (idx === s.i) go(1)}, 650)}
+      if (s.i === idx) {showEnd(0); toast('Game stopped (' + why + '). Skipping…'); setTimeout(() => {if (slots.get(idx) === s) go(1)}, 650)}
     }
 
-    /* ---- Implicit + explicit signals → taste profile (runs once when the player leaves a game) ---- */
-    function leave(s) {
+    /* ---- Implicit + explicit signals → taste profile when a game ends or is skipped ---- */
+    function leave(s, includeEngagement = true) {
       if (!s || !(s.dwell > 0 || ['playing', 'ending', 'ended'].includes(s.state))) return;
       clearTimeout(s.at); clearTimeout(s.et);
       const el = s.state === 'ended' ? s.elapsed : s.state === 'loading' ? 0 : performance.now() - s.t0, dwell = (s.dwell || 0) + el;
       const cur = s.res || s.r, comp = Math.max(s.best || 0, cur ? cur.completionPercent : 0) / 100, mt = M(s.v.id);
       mt.dwellMs += dwell; mt.bestCompletion = Math.max(mt.bestCompletion, comp * 100);
-      const early = dwell < 2000 && !s.liked;                         // swiped away almost immediately = strong negative
-      const imp = early ? 0 : .5 * comp + .3 * Math.min(1, dwell / s.dur) + .2 * Math.min(3, s.rep || 0) / 3;
-      let sig = early ? -.6 : (imp - .4) * 2; sig = cl(sig + (s.liked || 0) * (s.liked > 0 ? .5 : .8), -1, 1);
-      profile.update(s.v.tags, sig);
-      L('leave ' + s.v.title + ' dwell ' + (dwell / 1000).toFixed(1) + 's comp ' + Math.round(comp * 100) + '% signal ' + sig.toFixed(2));
+
+      const explicitSignal = (s.liked || 0) * (s.liked > 0 ? TASTE_LIKE_BONUS : TASTE_DISLIKE_PENALTY);
+      let signal = 0;
+      if (includeEngagement) {
+        // An immediate unliked exit gets a strong negative signal.
+        const early = dwell < TASTE_EARLY_EXIT_MS && !s.liked;
+        // Otherwise, engagement blends completion, capped dwell fraction, and capped replay count.
+        const impact = early ? 0 : TASTE_COMPLETION_WEIGHT * comp + TASTE_DWELL_WEIGHT * Math.min(TASTE_FULL_DWELL, dwell / s.dur) +
+          TASTE_REPLAY_WEIGHT * Math.min(TASTE_REPLAY_CAP, s.rep || 0) / TASTE_REPLAY_CAP;
+        // Center engagement at neutral impact, scale it, then add explicit like/dislike feedback.
+        signal = early ? TASTE_EARLY_EXIT_SIGNAL : (impact - TASTE_NEUTRAL_IMPACT) * TASTE_SIGNAL_SCALE;
+      }
+      signal = cl(signal + explicitSignal, TASTE_SIGNAL_MIN, TASTE_SIGNAL_MAX);
+      if (includeEngagement || explicitSignal) {profile.update(s.v.tags, signal); saveTasteProfile()}
+      L('leave ' + s.v.title + ' dwell ' + (dwell / 1000).toFixed(1) + 's comp ' + Math.round(comp * 100) + '%' +
+        (includeEngagement || explicitSignal ? ' signal ' + signal.toFixed(2) : ' (taste unchanged)'));
       Object.assign(s, {state: 'left', dwell: 0, rep: 0, best: 0, liked: 0});
     }
 
@@ -295,6 +359,7 @@ Wire format (handled by the injected shim; creators never touch it)
     const K = {};
     function kd() {const x = (K.ArrowRight ? 1 : 0) - (K.ArrowLeft ? 1 : 0), y = (K.ArrowDown ? 1 : 0) - (K.ArrowUp ? 1 : 0); if (x || y) dir = {x, y, active: true}; else if (!d) dir = {x: 0, y: 0, active: false}}
     addEventListener('keydown', e => {
+      if (view !== 'play') return;
       K[e.key] = 1;
       if (e.key === ' ') {e.preventDefault(); if (!e.repeat) inp('ACTION_PRIMARY', {x: .5, y: .5})}
       else if (e.key === 'Shift' || e.key === 'x') inp('ACTION_SECONDARY', {x: .5, y: .5});
@@ -313,25 +378,74 @@ Wire format (handled by the injected shim; creators never touch it)
       $('#cap').innerHTML = '<b>' + esc(s.v.title) + '</b><span>' + esc(top) + '</span>';
       $('#lk').classList.toggle('on', s.liked === 1);
     }
-    function openSheet(k) {sheet = sheet === k ? '' : k; $('#sheet').hidden = !sheet; renderPanel()}
+
+    function openPanel(k) {
+      panel = panel === k ? '' : k;
+      $('#home header').hidden = !!panel; $('#list').hidden = !!panel; $('#panel').hidden = !panel;
+      $('#feedBtn').classList.toggle('on', !panel);
+      $('#pf').classList.toggle('on', panel === 'prof'); $('#sp').classList.toggle('on', panel === 'spec');
+      renderPanel();
+    }
+
+    function closePanel() {
+      panel = ''; $('#home header').hidden = false; $('#list').hidden = false; $('#panel').hidden = true;
+      $('#feedBtn').classList.add('on');
+      $('#pf').classList.remove('on'); $('#sp').classList.remove('on');
+    }
+
     function renderPanel() {
-      if (!sheet) return; const sh = $('#sheet');
-      if (sheet === 'spec') {sh.innerHTML = '<h3>Creator API</h3><pre>' + esc(SPEC) + '</pre><h3>Compliant template</h3><pre>' + esc(GAMES[Object.keys(GAMES)[0]] || '') + '</pre>'; return }
+      if (!panel) return; const content = $('#panel');
+      if (panel === 'spec') {content.className = 'api-panel'; content.innerHTML = '<h3>API</h3><pre>' + esc(SPEC) + '</pre><h3>Compliant template</h3><pre>' + esc(GAMES[Object.keys(GAMES)[0]] || '') + '</pre>'; return }
       const top = [...profile.v].map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).slice(0, 3).map(x => x[1]);
-      sh.innerHTML = '<h3>Taste profile: 20 interests, each 0–100, scored independently</h3>' +
+      content.className = 'profile-panel';
+      content.innerHTML = '<div class="taste-scores"><h3>Taste Profile<br>20 interests (each 0–100)</h3><br><hr>' +
         DIMS.map((n, i) => '<div class=r><b>' + n + '</b><u><i class="' + (top.includes(i) && profile.v[i] !== 50 ? 't' : '') + '" style="width:' + profile.v[i] + '%"></i></u><span>' + Math.round(profile.v[i]) + '</span></div>').join('') +
-        '<h3>Event log</h3><pre>' + esc(log.slice(0, 8).join('\n') || 'Nothing yet.') + '</pre>';
+        '<hr></div><section class="event-log-panel" aria-label="Event log"><h3>Event log</h3><pre>' + esc(log.join('\n') || 'Nothing yet.') + '</pre></section>';
     }
     $('#lk').onclick = () => {const s = slots.get(idx); s.liked = s.liked === 1 ? 0 : 1; $('#lk').classList.toggle('on', s.liked === 1); L((s.liked ? 'like ' : 'unlike ') + s.v.title)};
     $('#dl').onclick = () => {const s = slots.get(idx); s.liked = -1; L('dislike ' + s.v.title); toast('Got it. Showing fewer like this.'); go(1)};
-    $('#pf').onclick = () => openSheet('prof'); $('#sp').onclick = () => openSheet('spec');
     $('#rp').onclick = replay; $('#nx').onclick = () => go(1);
 
-    loadLibrary().then(() => {
-      layout(); activate(slots.get(0)); requestAnimationFrame(loop);
-      toast('Flick up for the next game · tap · hold · drag')
-    })
-      .catch(e => {$('#cap').innerHTML = '<b>Library not found</b><span>Serve this folder over http (for example: python3 -m http.server) so Library/manifest.json can load.</span>'});
+    /* ---- Feed page: nothing is built or played until the player picks a game ---- */
+    const hue = id => [...id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+    function renderList() {
+      $('#sub').textContent = 'Library: ' + LIST.length + ' games\nPick one to jump into the endless feed.';
+      $('#list').innerHTML = LIST.map((gm, i) => {
+        const b = BASES[gm.id], chips = Object.entries(b.t).sort((x, y) => y[1] - x[1]).slice(0, 3).map(x => '<em>' + esc(x[0]) + '</em>').join('');
+        return '<button class="card" role="listitem" data-i="' + i + '"><span class="ico" style="--h:' + hue(gm.id) + '">' + esc(b.icon || gm.title.trim().charAt(0).toUpperCase()) +
+          '</span><span class="txt"><b>' + esc(gm.title) + '</b><span class="desc">' + esc(b.desc || 'A micro-game from the library.') + '</span><span class="chips">' + chips +
+          '</span></span><span class="go" aria-hidden="true">▶</span></button>';
+      }).join('');
+      $('#pl').disabled = false;
+    }
+
+    // Optionally record a taste signal, then drop every iframe and timer.
+    function teardown(includeEngagement = true) {
+      leave(slots.get(idx), includeEngagement);
+      for (const s of slots.values()) {clearTimeout(s.lt); clearTimeout(s.et); clearTimeout(s.at); if (s.fr) s.fr.remove(); s.el.remove()}
+      slots.clear(); queue = []; idx = 0; busy = false; dir = {x: 0, y: 0, active: false};
+    }
+
+    function openFeed(base) { // base = library id to open first; undefined = taste-routed pick
+      teardown(); view = 'play'; closePanel(); $('#home').hidden = true;
+      queue[0] = base ? variant(base) : route();
+      layout(); activate(slots.get(0));
+      toast('Flick up for the next game · tap · hold · drag');
+    }
+
+    function showHome() {
+      teardown(false); view = 'home'; closePanel(); showEnd(0);
+      $('#bar i').style.width = '0'; $('#sc').textContent = ''; $('#cap').innerHTML = ''; $('#home').hidden = false;
+    }
+
+    $('#list').onclick = e => {const c = e.target.closest('.card'); if (c) openFeed(LIST[+c.dataset.i].id)};
+    $('#feedBtn').onclick = showHome;
+    $('#pf').onclick = () => openPanel('prof'); $('#sp').onclick = () => openPanel('spec');
+    $('#pl').onclick = () => openFeed(); $('#hm').onclick = showHome;
+    loadTasteProfile();
+    requestAnimationFrame(loop);
+    loadLibrary().then(() => {renderList(); openFeed()})
+      .catch(e => {$('#home').hidden = false; $('#sub').textContent = ''; $('#list').innerHTML = '<p class="note"><b>Library not found.</b> Serve this folder over http (for example: python3 -m http.server) so Library/manifest.json can load.</p>'});
   </script>
 </body>
 

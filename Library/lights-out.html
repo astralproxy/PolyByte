@@ -1,4 +1,4 @@
-<!-- microfeed: {"title":"Lights Out","tags":{"Puzzle":1,"Strategy":0.5,"Minimal":0.4}} -->
+<!-- microfeed: {"title": "Lights Out", "icon": "💡", "description": "Tap a light to flip it and its neighbours. Turn them all off to win.", "tags": {"Puzzle": 1, "Strategy": 0.5, "Minimal": 0.4}} -->
 <script>
 /* Puzzle: tapping a cell toggles it and its neighbours. Turn every light off. Hold = hint (once). */
 window.GameMeta={title:'Lights Out',gameLength:15000};
@@ -21,7 +21,7 @@ function renderAll(c){
   for(var k=0;k<9;k++){var x=30+(k%3)*100+3,y=170+((k/3)|0)*100+3;
     c.fillStyle=g[k]?'hsl('+((h+40)%360)+',90%,62%)':'hsl('+h+',25%,20%)';c.fillRect(x,y,94,94);
     if(ht>0&&k===hc){c.strokeStyle='#fff';c.lineWidth=4;c.strokeRect(x+4,y+4,86,86)}}
-  c.fillStyle='#fff';c.font='bold 24px system-ui';c.fillText(done?'Solved!':'Lights out',16,60);
+  c.fillStyle='#fff';c.font='bold 24px system-ui';c.fillText(done?'Solved!':'Clear all the lights',16,60);
   c.font='14px system-ui';c.fillText('Moves '+moves+(hint?'  ·  hold: hint':''),16,86);
 }
 function getResult(){var on=g.filter(function(v){return v}).length;

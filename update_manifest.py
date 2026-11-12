@@ -4,8 +4,9 @@
 Usage:  python3 update_manifest.py [--library DIR] [--dry-run] [--check]
 
 Per-game metadata goes in a comment at the top of the game file:
-    <!-- microfeed: {"title":"Beat Tap","tags":{"Rhythm":1,"Music":0.8}} -->
-Tags are interest names (see DIMS) with weights in (0, 1].
+    <!-- microfeed: {"title":"Beat Tap","icon":"🥁","description":"Tap the lanes in time.","tags":{"Rhythm":1,"Music":0.8}} -->
+Tags are interest names (see DIMS) with weights in (0, 1]. icon (an emoji) and description
+(one short line, under 140 characters) are shown on the game's card in the Feed page.
   - New .html files are added (id = file name without extension).
   - Existing entries keep their id and tags unless the file carries a microfeed comment.
   - Entries whose file no longer exists are removed.
@@ -42,6 +43,9 @@ def read_game(path):
         elif not isinstance(w, (int, float)) or not 0 < w <= 1: errs.append('tag "%s" must be a number in (0, 1]' % k)
         else: tags[k] = w
     if 'tags' in meta: meta['tags'] = tags
+    for k in ('icon', 'description'):
+        if k in meta and not isinstance(meta[k], str): errs.append('%s must be a string' % k); meta.pop(k)
+    if len(meta.get('description', '')) > 140: warns.append('description is over 140 characters')
     return meta, errs, warns
 
 def main():
@@ -60,7 +64,8 @@ def main():
         if errs:
             bad += 1; print('  SKIP  %s: %s' % (p.name, '; '.join(errs))); continue
         e = dict(by_file.get(p.name) or {'id': p.stem, 'file': p.name, 'title': p.stem.replace('-', ' ').title(), 'tags': {}})
-        e.update({k: meta[k] for k in ('title', 'tags') if k in meta})
+        e.update({k: meta[k] for k in ('title', 'icon', 'description', 'tags') if k in meta})
+        if not e.get('description'): print('  warn  %s: no description (its Feed card shows a placeholder)' % p.name)
         if not e.get('tags'): print('  warn  %s: no tags, so it gives no taste signal' % p.name)
         if e['id'] in ids: e['id'] = p.stem
         ids.add(e['id']); games.append(e)
