@@ -19,7 +19,17 @@
     <div id="rail">
       <button id="lk" title="Like" aria-label="Like">♥</button>
       <button id="dl" title="Not for me" aria-label="Not for me">✕</button>
+      <button id="infoBtn" title="Game information" aria-label="Game information">ℹ️</button>
     </div>
+
+    <dialog id="gameInfo" aria-labelledby="infoTitle">
+      <button id="infoClose" type="button" aria-label="Close game information">✕</button>
+      <h2 id="infoTitle"></h2>
+      <h3>Objective</h3>
+      <p id="infoObjective"></p>
+      <h3>Controls</h3>
+      <ul id="infoControls"></ul>
+    </dialog>
 
     <div id="cap"></div>
     <div id="end" hidden>
@@ -37,7 +47,6 @@
       <div id="main">
         <header>
           <h1>PolyByte</h1>
-          <p id="sub">Loading the library…</p>
           <button id="pl" disabled>▶ Play Random</button>
         </header>
         <div id="list" role="list"><p class="note">Loading…</p></div>
@@ -404,12 +413,25 @@ Wire format (handled by the injected shim; creators never touch it)
     }
     $('#lk').onclick = () => {const s = slots.get(idx); s.liked = s.liked === 1 ? 0 : 1; $('#lk').classList.toggle('on', s.liked === 1); L((s.liked ? 'like ' : 'unlike ') + s.v.title)};
     $('#dl').onclick = () => {const s = slots.get(idx); s.liked = -1; L('dislike ' + s.v.title); toast('Got it. Showing fewer like this.'); go(1)};
+    $('#infoBtn').onclick = () => {
+      const s = slots.get(idx); if (!s) return;
+      $('#infoTitle').textContent = s.v.title;
+      $('#infoObjective').textContent = BASES[s.v.base].desc || 'Play the game and complete its challenge.';
+      const source = GAMES[s.v.base] || '';
+      const controls = [
+        ['ACTION_PRIMARY', 'Tap or click, or press Space: primary action.'],
+        ['ACTION_SECONDARY', 'Hold, or press Shift or X: secondary action.'],
+        ['DIRECTIONAL_VECTOR', s.v.base === 'beat-tap' ? 'Press Left, Up, or Right to hit the left, center, or right lane.' : 'Drag or use the arrow keys: directional movement.']
+      ].filter(([action]) => source.includes(action));
+      $('#infoControls').innerHTML = controls.map(([, label]) => '<li>' + label + '</li>').join('') || '<li>No controls are defined for this game.</li>';
+      $('#gameInfo').showModal();
+    };
+    $('#infoClose').onclick = () => $('#gameInfo').close();
     $('#rp').onclick = replay; $('#nx').onclick = () => go(1);
 
     /* ---- Feed page: nothing is built or played until the player picks a game ---- */
     const hue = id => [...id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
     function renderList() {
-      $('#sub').textContent = 'Library: ' + LIST.length + ' games\nPick one to jump into the endless feed.';
       $('#list').innerHTML = LIST.map((gm, i) => {
         const b = BASES[gm.id], chips = Object.entries(b.t).sort((x, y) => y[1] - x[1]).slice(0, 3).map(x => '<em>' + esc(x[0]) + '</em>').join('');
         return '<button class="card" role="listitem" data-i="' + i + '"><span class="ico" style="--h:' + hue(gm.id) + '">' + esc(b.icon || gm.title.trim().charAt(0).toUpperCase()) +

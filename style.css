@@ -1,7 +1,5 @@
 :root {
   box-sizing: border-box;
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
   --bg: #e6e3ee;
   --ink: #14121c;
   --hot: #ff5a36;
@@ -40,7 +38,7 @@ body {
   font: 14px/1.4 "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   overflow: hidden;
   overscroll-behavior: none
 }
@@ -51,8 +49,8 @@ body {
 
 #stage {
   position: relative;
-  height: min(100%, 177.78vw);
-  aspect-ratio: 9/16;
+  width: 100%;
+  height: 100%;
   background: #000;
   overflow: hidden;
   color: #fff;
@@ -144,6 +142,65 @@ body {
 #rail button:focus-visible,
 #hm:focus-visible,
 #end button:focus-visible {
+  outline: 3px solid var(--lime);
+  outline-offset: 2px
+}
+
+#gameInfo {
+  width: min(88vw, 420px);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid #fff3;
+  border-radius: 18px;
+  background: #0d0b14;
+  color: #fff;
+  box-shadow: 0 12px 40px #0009
+}
+
+#gameInfo::backdrop {
+  background: #000b
+}
+
+#gameInfo h2 {
+  margin: 0 42px 18px 0;
+  font-size: 20px
+}
+
+#gameInfo h3 {
+  margin: 14px 0 6px;
+  font-size: 14px
+}
+
+#gameInfo p {
+  margin: 0;
+  line-height: 1.5
+}
+
+#gameInfo ul {
+  margin: 0;
+  padding-left: 20px
+}
+
+#gameInfo li+li {
+  margin-top: 6px
+}
+
+#infoClose {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #fff3;
+  border-radius: 50%;
+  background: #fff1;
+  color: #fff;
+  font: inherit;
+  cursor: pointer
+}
+
+#gameInfo button:focus-visible {
   outline: 3px solid var(--lime);
   outline-offset: 2px
 }
@@ -332,27 +389,40 @@ body {
 }
 
 #home header {
-  padding: 22px 18px 12px
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  row-gap: 8px;
+  padding: 16px 12px 8px
 }
 
 #home h1 {
+  grid-column: 1;
+  justify-self: center;
   margin: 0;
-  font-size: 28px;
-  letter-spacing: -.02em
+  font-size: 32px;
+  font-variant: small-caps;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  letter-spacing: 0.6em
 }
 
 #home header p {
-  margin: 4px 0 14px;
-  opacity: .75;
-  white-space: pre-line
+  opacity: .75
+}
+
+#home header #pl {
+  grid-column: 1;
+  justify-self: center
 }
 
 #pl {
   font: inherit;
   font-weight: 700;
-  padding: 11px 20px;
+  padding: 8px 16px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--lime);
   color: #14121c;
   cursor: pointer
@@ -374,6 +444,7 @@ body {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  border-top: 1px solid #fff2;
   padding: 6px 14px 22px;
   display: flex;
   flex-direction: column;
@@ -396,7 +467,7 @@ body {
   color: #fff;
   background: #1a1726;
   border: 1px solid #fff1;
-  border-radius: 16px;
+  border-radius: 8px;
   cursor: pointer
 }
 
@@ -412,7 +483,7 @@ body {
   place-items: center;
   font-size: 26px;
   font-weight: 700;
-  border-radius: 16px;
+  border-radius: 8px;
   background: hsl(var(--h) 55% 30%)
 }
 
@@ -487,7 +558,7 @@ body {
   flex-direction: row;
   align-items: center;
   gap: 6px;
-  padding: 12px 12px 10px;
+  padding: 8px 12px 6px;
   font: inherit;
   font-size: 12px;
   color: #fff;
