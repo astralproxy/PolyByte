@@ -1,120 +1,370 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Microfeed – micro-game host shell (Library edition)</title>
-<style>
-:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#e6e3ee;--ink:#14121c;--hot:#ff5a36;--lime:#c6ff3d}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0b0912;--ink:#f3f0fa}}
-:root[data-theme=dark]{--bg:#0b0912;--ink:#f3f0fa}
-*{box-sizing:border-box}
-html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--ink);font:14px/1.4 "Trebuchet MS","Segoe UI",system-ui,sans-serif;display:flex;justify-content:center;align-items:center;overflow:hidden;overscroll-behavior:none}
-[hidden]{display:none!important}
-#stage{position:relative;height:min(100%,177.78vw);aspect-ratio:9/16;background:#000;overflow:hidden;color:#fff;border-radius:min(22px,3vw);user-select:none;-webkit-user-select:none}
-#feed,#gest{position:absolute;inset:0}
-#gest{z-index:5;touch-action:none;cursor:grab}
-.slot{position:absolute;inset:0;transition:transform .38s cubic-bezier(.3,.9,.3,1);background:#000}
-.slot iframe{width:100%;height:100%;border:0;display:block;pointer-events:none}
-#bar{position:absolute;z-index:6;top:0;left:0;right:0;height:5px;background:#fff3}
-#bar i{display:block;height:100%;width:0;background:var(--lime)}
-#sc{position:absolute;z-index:6;top:12px;right:14px;font-weight:700;text-shadow:0 1px 4px #000}
-#rail{position:absolute;z-index:8;right:10px;bottom:120px;display:flex;flex-direction:column;gap:10px}
-#rail button{width:46px;height:46px;border-radius:50%;border:2px solid #fff5;background:#000a;color:#fff;font-size:20px;cursor:pointer}
-#rail button.on{background:var(--hot);border-color:var(--hot)}
-#rail button:focus-visible,#end button:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
-#cap{position:absolute;z-index:6;left:14px;right:72px;bottom:18px;text-shadow:0 1px 5px #000;pointer-events:none}
-#cap b{font-size:18px;display:block}
-#cap span{opacity:.85}
-#end{position:absolute;z-index:7;inset:auto 0 0 0;padding:26px 20px 24px;background:linear-gradient(transparent,#000d 35%);text-align:center}
-#end h2{margin:0 0 4px;font-size:30px}
-#end p{margin:0 0 14px;opacity:.85}
-#end button{font:inherit;font-weight:700;padding:11px 22px;margin:0 5px;border-radius:999px;border:0;cursor:pointer;background:var(--lime);color:#14121c}
-#end button+button{background:#fff2;color:#fff}
-#toast{position:absolute;z-index:9;left:50%;top:48px;transform:translateX(-50%);background:#000c;padding:8px 14px;border-radius:999px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis}
-#toast.on{opacity:1}
-#sheet{position:absolute;z-index:10;inset:auto 0 0 0;max-height:72%;overflow:auto;background:#0d0b14f2;padding:14px 16px 20px;border-radius:18px 18px 0 0}
-#sheet h3{margin:12px 0 6px;font-size:14px}
-#sheet pre{margin:0;font:11px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;color:#d9d4ea}
-.r{display:grid;grid-template-columns:76px 1fr 30px;gap:8px;align-items:center;font-size:12px;margin:3px 0}
-.r u{display:block;height:8px;background:#fff2;border-radius:4px;overflow:hidden}
-.r i{display:block;height:100%;background:#8d86a8}
-.r i.t{background:var(--lime)}
-.r span{text-align:right}
-@media(prefers-reduced-motion:reduce){.slot{transition:none}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Microfeed – micro-game host shell (Library edition)</title>
+  <style>
+    :root {
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      --bg: #e6e3ee;
+      --ink: #14121c;
+      --hot: #ff5a36;
+      --lime: #c6ff3d
+    }
+
+    html {
+      scroll-padding-top: env(safe-area-inset-top, 0px)
+    }
+
+    @media(prefers-color-scheme:dark) {
+      :root:not([data-theme=light]) {
+        --bg: #0b0912;
+        --ink: #f3f0fa
+      }
+    }
+
+    :root[data-theme=dark] {
+      --bg: #0b0912;
+      --ink: #f3f0fa
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px/1.4 "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      overscroll-behavior: none
+    }
+
+    [hidden] {
+      display: none !important
+    }
+
+    #stage {
+      position: relative;
+      height: min(100%, 177.78vw);
+      aspect-ratio: 9/16;
+      background: #000;
+      overflow: hidden;
+      color: #fff;
+      border-radius: min(22px, 3vw);
+      user-select: none;
+      -webkit-user-select: none
+    }
+
+    #feed,
+    #gest {
+      position: absolute;
+      inset: 0
+    }
+
+    #gest {
+      z-index: 5;
+      touch-action: none;
+      cursor: grab
+    }
+
+    .slot {
+      position: absolute;
+      inset: 0;
+      transition: transform .38s cubic-bezier(.3, .9, .3, 1);
+      background: #000
+    }
+
+    .slot iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      pointer-events: none
+    }
+
+    #bar {
+      position: absolute;
+      z-index: 6;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: #fff3
+    }
+
+    #bar i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--lime)
+    }
+
+    #sc {
+      position: absolute;
+      z-index: 6;
+      top: 12px;
+      right: 14px;
+      font-weight: 700;
+      text-shadow: 0 1px 4px #000
+    }
+
+    #rail {
+      position: absolute;
+      z-index: 8;
+      right: 10px;
+      bottom: 120px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px
+    }
+
+    #rail button {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: 2px solid #fff5;
+      background: #000a;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer
+    }
+
+    #rail button.on {
+      background: var(--hot);
+      border-color: var(--hot)
+    }
+
+    #rail button:focus-visible,
+    #end button:focus-visible {
+      outline: 3px solid var(--lime);
+      outline-offset: 2px
+    }
+
+    #cap {
+      position: absolute;
+      z-index: 6;
+      left: 14px;
+      right: 72px;
+      bottom: 18px;
+      text-shadow: 0 1px 5px #000;
+      pointer-events: none
+    }
+
+    #cap b {
+      font-size: 18px;
+      display: block
+    }
+
+    #cap span {
+      opacity: .85
+    }
+
+    #end {
+      position: absolute;
+      z-index: 7;
+      inset: auto 0 0 0;
+      padding: 26px 20px 24px;
+      background: linear-gradient(transparent, #000d 35%);
+      text-align: center
+    }
+
+    #end h2 {
+      margin: 0 0 4px;
+      font-size: 30px
+    }
+
+    #end p {
+      margin: 0 0 14px;
+      opacity: .85
+    }
+
+    #end button {
+      font: inherit;
+      font-weight: 700;
+      padding: 11px 22px;
+      margin: 0 5px;
+      border-radius: 999px;
+      border: 0;
+      cursor: pointer;
+      background: var(--lime);
+      color: #14121c
+    }
+
+    #end button+button {
+      background: #fff2;
+      color: #fff
+    }
+
+    #toast {
+      position: absolute;
+      z-index: 9;
+      left: 50%;
+      top: 48px;
+      transform: translateX(-50%);
+      background: #000c;
+      padding: 8px 14px;
+      border-radius: 999px;
+      opacity: 0;
+      transition: opacity .25s;
+      pointer-events: none;
+      white-space: nowrap;
+      max-width: 94%;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    #toast.on {
+      opacity: 1
+    }
+
+    #sheet {
+      position: absolute;
+      z-index: 10;
+      inset: auto 0 0 0;
+      max-height: 72%;
+      overflow: auto;
+      background: #0d0b14f2;
+      padding: 14px 16px 20px;
+      border-radius: 18px 18px 0 0
+    }
+
+    #sheet h3 {
+      margin: 12px 0 6px;
+      font-size: 14px
+    }
+
+    #sheet pre {
+      margin: 0;
+      font: 11px/1.45 ui-monospace, Menlo, monospace;
+      white-space: pre-wrap;
+      color: #d9d4ea
+    }
+
+    .r {
+      display: grid;
+      grid-template-columns: 76px 1fr 30px;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+      margin: 3px 0
+    }
+
+    .r u {
+      display: block;
+      height: 8px;
+      background: #fff2;
+      border-radius: 4px;
+      overflow: hidden
+    }
+
+    .r i {
+      display: block;
+      height: 100%;
+      background: #8d86a8
+    }
+
+    .r i.t {
+      background: var(--lime)
+    }
+
+    .r span {
+      text-align: right
+    }
+
+    @media(prefers-reduced-motion:reduce) {
+      .slot {
+        transition: none
+      }
+    }
+  </style>
 </head>
+
 <body>
-<div id="stage">
-  <div id="feed"></div>
-  <div id="gest" aria-label="Game surface: tap, hold, drag. Flick up or down to switch games."></div>
-  <div id="bar"><i></i></div>
-  <div id="sc"></div>
-  <div id="rail">
-    <button id="lk" title="Like" aria-label="Like">♥</button>
-    <button id="dl" title="Not for me" aria-label="Not for me">✕</button>
-    <button id="pf" title="Taste profile" aria-label="Taste profile">◔</button>
-    <button id="sp" title="Creator API" aria-label="Creator API">{ }</button>
+  <div id="stage">
+    <div id="feed"></div>
+    <div id="gest" aria-label="Game surface: tap, hold, drag. Flick up or down to switch games."></div>
+    <div id="bar"><i></i></div>
+    <div id="sc"></div>
+    <div id="rail">
+      <button id="lk" title="Like" aria-label="Like">♥</button>
+      <button id="dl" title="Not for me" aria-label="Not for me">✕</button>
+      <button id="pf" title="Taste profile" aria-label="Taste profile">◔</button>
+      <button id="sp" title="Creator API" aria-label="Creator API">{ }</button>
+    </div>
+    <div id="cap"></div>
+    <div id="end" hidden>
+      <h2 id="etx"></h2>
+      <p id="esub"></p><button id="rp">Replay</button><button id="nx">Next game</button>
+    </div>
+    <div id="sheet" hidden></div>
+    <div id="toast"></div>
   </div>
-  <div id="cap"></div>
-  <div id="end" hidden><h2 id="etx"></h2><p id="esub"></p><button id="rp">Replay</button><button id="nx">Next game</button></div>
-  <div id="sheet" hidden></div>
-  <div id="toast"></div>
-</div>
 
-<script>
-/* =====================================================================
-   MICROFEED HOST SHELL
-   Guests run in <iframe sandbox="allow-scripts"> (opaque origin: no cookies,
-   storage, network to host, or DOM access). All traffic is postMessage with
-   {sdk:1,type,...}. Host drives the frame clock and sends TICKs.
-   ===================================================================== */
-const $=s=>document.querySelector(s), cl=(x,a,b)=>Math.min(b,Math.max(a,x)), pick=a=>a[(Math.random()*a.length)|0];
-const num=(x,d=0)=>Number.isFinite(+x)?+x:d, esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  <script>
+    /* =====================================================================
+       MICROFEED HOST SHELL
+       Guests run in <iframe sandbox="allow-scripts"> (opaque origin: no cookies,
+       storage, network to host, or DOM access). All traffic is postMessage with
+       {sdk:1,type,...}. Host drives the frame clock and sends TICKs.
+       ===================================================================== */
+    const $ = s => document.querySelector(s), cl = (x, a, b) => Math.min(b, Math.max(a, x)), pick = a => a[(Math.random() * a.length) | 0];
+    const num = (x, d = 0) => Number.isFinite(+x) ? +x : d, esc = s => s.replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
 
-/* ---- Platform constants ---- */
-const SESSION_MS=15000, MIN_MS=10000, MAX_MS=30000; // default / allowed session length
-const LOAD_MS=3000, HANG_MS=2000, RESULT_MS=600;    // init, heartbeat, endGame response deadlines
+    /* ---- Platform constants ---- */
+    const SESSION_MS = 15000, MIN_MS = 10000, MAX_MS = 30000; // default / allowed session length
+    const LOAD_MS = 3000, HANG_MS = 2000, RESULT_MS = 600;    // init, heartbeat, endGame response deadlines
 
-/* ---- Taste profile: 20 independent interest scores, 0–100, non-zero-sum ---- */
-const DIMS=['Reflex','Precision','Rhythm','Memory','Puzzle','Strategy','Racing','Arcade','Retro','Neon','Cosmic','Nature','Food','Animals','Horror','Cozy','Sports','Music','Humor','Minimal'];
-const IDX=Object.fromEntries(DIMS.map((d,i)=>[d,i]));
-class TasteProfile{
-  constructor(){this.v=new Float32Array(20).fill(50)}
-  // tags: Float32Array(20) of 0..1 weights; s: signal -1..1. Each dimension moves on its own.
-  update(tags,s,lr=14){for(let i=0;i<20;i++)if(tags[i]>0)this.v[i]=cl(this.v[i]+lr*tags[i]*s,0,100)}
-  affinity(tags){let a=0,w=0;for(let i=0;i<20;i++){a+=tags[i]*this.v[i];w+=tags[i]}return w?a/w:50}
-}
-const profile=new TasteProfile(), metrics=new Map(), log=[];
-const M=id=>{if(!metrics.has(id))metrics.set(id,{plays:0,replays:0,bestCompletion:0,dwellMs:0,errors:0});return metrics.get(id)};
-const L=m=>{log.unshift(((performance.now()/1000)|0)+'s '+m);if(log.length>40)log.pop();if(sheet==='prof')renderPanel()};
+    /* ---- Taste profile: 20 independent interest scores, 0–100, non-zero-sum ---- */
+    const DIMS = ['Reflex', 'Precision', 'Rhythm', 'Memory', 'Puzzle', 'Strategy', 'Racing', 'Arcade', 'Retro', 'Neon', 'Cosmic', 'Nature', 'Food', 'Animals', 'Horror', 'Cozy', 'Sports', 'Music', 'Humor', 'Minimal'];
+    const IDX = Object.fromEntries(DIMS.map((d, i) => [d, i]));
+    class TasteProfile {
+      constructor() {this.v = new Float32Array(20).fill(50)}
+      // tags: Float32Array(20) of 0..1 weights; s: signal -1..1. Each dimension moves on its own.
+      update(tags, s, lr = 14) {for (let i = 0; i < 20; i++)if (tags[i] > 0) this.v[i] = cl(this.v[i] + lr * tags[i] * s, 0, 100)}
+      affinity(tags) {let a = 0, w = 0; for (let i = 0; i < 20; i++) {a += tags[i] * this.v[i]; w += tags[i]} return w ? a / w : 50}
+    }
+    const profile = new TasteProfile(), metrics = new Map(), log = [];
+    const M = id => {if (!metrics.has(id)) metrics.set(id, {plays: 0, replays: 0, bestCompletion: 0, dwellMs: 0, errors: 0}); return metrics.get(id)};
+    const L = m => {log.unshift(((performance.now() / 1000) | 0) + 's ' + m); if (log.length > 40) log.pop(); if (sheet === 'prof') renderPanel()};
 
-/* ---- Catalog + router (infinite: variants are generated on demand) ---- */
-const THEMES=[
- {n:'Cosmic',h:250,t:{Cosmic:1,Neon:.5,Arcade:.4}},{n:'Candy',h:320,t:{Food:1,Cozy:.6,Humor:.4}},
- {n:'Forest',h:130,t:{Nature:1,Animals:.5,Cozy:.5}},{n:'Retro',h:40,t:{Retro:1,Arcade:.8,Music:.2}},
- {n:'Neon',h:180,t:{Neon:1,Rhythm:.5,Racing:.4}},{n:'Spooky',h:285,t:{Horror:1,Humor:.3,Memory:.2}},
- {n:'Sports',h:10,t:{Sports:1,Racing:.5,Precision:.4}},{n:'Zen',h:200,t:{Minimal:1,Cozy:.6,Puzzle:.3}}];
-let seq=0, recent=[];
-function variant(){
-  const base=pick(Object.keys(BASES)), th=pick(THEMES), tags=new Float32Array(20);
-  for(const [k,w] of Object.entries(BASES[base].t))tags[IDX[k]]=w;
-  for(const [k,w] of Object.entries(th.t))tags[IDX[k]]=Math.max(tags[IDX[k]],w);
-  return{id:'g'+(++seq),base,theme:th,seed:(Math.random()*1e9)|0,tags,title:BASES[base].title+' · '+th.n};
-}
-function route(){ // best of 8 fresh candidates by taste affinity; 20% pure exploration; repeat penalty
-  const c=Array.from({length:8},variant);
-  if(Math.random()<.2)return c[0];
-  let best=c[0],bs=-1e9;
-  for(const v of c){const k=v.base+v.theme.n,sc=profile.affinity(v.tags)+Math.random()*10-(recent.includes(k)?25:0);if(sc>bs){bs=sc;best=v}}
-  recent.push(best.base+best.theme.n);if(recent.length>4)recent.shift();
-  return best;
-}
+    /* ---- Catalog + router (infinite: variants are generated on demand) ---- */
+    const THEMES = [
+      {n: 'Cosmic', h: 250, t: {Cosmic: 1, Neon: .5, Arcade: .4}}, {n: 'Candy', h: 320, t: {Food: 1, Cozy: .6, Humor: .4}},
+      {n: 'Forest', h: 130, t: {Nature: 1, Animals: .5, Cozy: .5}}, {n: 'Retro', h: 40, t: {Retro: 1, Arcade: .8, Music: .2}},
+      {n: 'Neon', h: 180, t: {Neon: 1, Rhythm: .5, Racing: .4}}, {n: 'Spooky', h: 285, t: {Horror: 1, Humor: .3, Memory: .2}},
+      {n: 'Sports', h: 10, t: {Sports: 1, Racing: .5, Precision: .4}}, {n: 'Zen', h: 200, t: {Minimal: 1, Cozy: .6, Puzzle: .3}}];
+    let seq = 0, recent = [];
+    function variant() {
+      const base = pick(Object.keys(BASES)), th = pick(THEMES), tags = new Float32Array(20);
+      for (const [k, w] of Object.entries(BASES[base].t)) tags[IDX[k]] = w;
+      for (const [k, w] of Object.entries(th.t)) tags[IDX[k]] = Math.max(tags[IDX[k]], w);
+      return {id: 'g' + (++seq), base, theme: th, seed: (Math.random() * 1e9) | 0, tags, title: BASES[base].title + ' · ' + th.n};
+    }
+    function route() { // best of 8 fresh candidates by taste affinity; 20% pure exploration; repeat penalty
+      const c = Array.from({length: 8}, variant);
+      if (Math.random() < .2) return c[0];
+      let best = c[0], bs = -1e9;
+      for (const v of c) {const k = v.base + v.theme.n, sc = profile.affinity(v.tags) + Math.random() * 10 - (recent.includes(k) ? 25 : 0); if (sc > bs) {bs = sc; best = v} }
+      recent.push(best.base + best.theme.n); if (recent.length > 4) recent.shift();
+      return best;
+    }
 
-/* ---- SDK shim injected into every guest (implements the window bridge) ---- */
-const SHIM=`(function(){var P=parent,cv=document.getElementById('c'),ctx=cv.getContext('2d'),run=0;
+    /* ---- SDK shim injected into every guest (implements the window bridge) ---- */
+    const SHIM = `(function(){var P=parent,cv=document.getElementById('c'),ctx=cv.getContext('2d'),run=0;
 function send(t,d){d=d||{};d.sdk=1;d.type=t;P.postMessage(d,'*')}
 function fail(m){send('ERROR',{msg:String(m)})}
 addEventListener('error',function(e){fail(e.message)});
@@ -134,8 +384,8 @@ addEventListener('message',function(e){if(e.source!==P)return;var m=e.data||{};
  }catch(err){fail(err)}});
 })();`;
 
-/* ---- Creator contract (shown to creators in the { } sheet) ---- */
-const SPEC=`CREATOR API v1 – micro-game contract
+    /* ---- Creator contract (shown to creators in the { } sheet) ---- */
+    const SPEC = `CREATOR API v1 – micro-game contract
 
 Constraints
   gameLength: design for 10–30 s of active play. Declare it with
@@ -166,194 +416,208 @@ Wire format (handled by the injected shim; creators never touch it)
   host->guest  START | TICK{dt} | INPUT{event} | END_GAME
   guest->host  READY{meta} | HB{r} | RESULT{r} | ERROR{msg} | END_REQUEST`;
 
-/* ---- Embedded compliant micro-games (creator template = Pop Rush) ---- */
-/* ---- Library loader: Library/manifest.json lists games; each game is its own HTML file ---- */
-const LIB='Library/'; let BASES={}, GAMES={};
-async function loadLibrary(){
-  const man=await (await fetch(LIB+'manifest.json')).json();
-  await Promise.all(man.games.map(async gm=>{
-    try{const r=await fetch(LIB+gm.file);if(!r.ok)throw new Error(r.status);
-      GAMES[gm.id]=await r.text();
-      BASES[gm.id]={title:gm.title,t:Object.fromEntries(Object.entries(gm.tags||{}).filter(([k])=>k in IDX))}}
-    catch(e){console.warn('Skipped library game',gm.id,e)}}));
-  if(!Object.keys(BASES).length)throw new Error('Library is empty');
-}
-
-function srcdoc(v){
-  const p=JSON.stringify({hue:v.theme.h,seed:v.seed,theme:v.theme.n}).replace(/</g,'\\u003c');
-  return '<!doctype html><meta charset=utf-8><style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{width:100%;height:100%;display:block}</style><canvas id=c width=360 height=640></canvas><script>window.PARAMS='+p+';'+SHIM+'<\/script>'+GAMES[v.base]+'<script>window.__boot()<\/script>';
-}
-
-/* ---- Feed: slots for idx-1 / idx / idx+1, all preloaded; only idx is ticked ---- */
-const feed=$('#feed'); let idx=0, queue=[], slots=new Map(), busy=false, sheet='';
-const send=(s,type,d)=>{if(s.fr&&s.fr.contentWindow)s.fr.contentWindow.postMessage({sdk:1,type,...d},'*')};
-
-function ensure(k){if(k<0)return;while(queue.length<=k)queue.push(route());if(!slots.has(k))slots.set(k,mkSlot(k))}
-function mkSlot(k){
-  const el=document.createElement('div');el.className='slot';el.style.transform='translateY('+(k-idx)*100+'%)';feed.append(el);
-  const s={i:k,v:queue[k],el,dur:SESSION_MS,state:'loading'};build(s);return s;
-}
-function build(s){ // (re)create the sandboxed iframe; state machine: loading→ready→playing→ending→ended→left | dead
-  if(s.fr)s.fr.remove();clearTimeout(s.lt);clearTimeout(s.et);clearTimeout(s.at);
-  Object.assign(s,{state:'loading',r:null,res:null,fl:0});
-  const f=document.createElement('iframe');
-  f.setAttribute('sandbox','allow-scripts');f.title=s.v.title;f.srcdoc=srcdoc(s.v);
-  s.fr=f;s.el.prepend(f);
-  s.lt=setTimeout(()=>{if(s.state==='loading')kill(s,'failed to initialise')},LOAD_MS);
-}
-function layout(){
-  for(const k of [idx-1,idx,idx+1])ensure(k);
-  for(const [k,s] of slots){
-    if(Math.abs(k-idx)>1){s.fr&&s.fr.remove();clearTimeout(s.lt);s.el.remove();slots.delete(k)}
-    else{s.el.style.transform='translateY('+(k-idx)*100+'%)';if(s.state==='left'&&k!==idx)build(s)} // keep neighbours warm
-  }
-}
-function activate(s){
-  showEnd(0);hudReset(s);
-  if(s.state==='ready')start(s);
-  else if(s.state==='dead'){s.v=queue[s.i]=route();build(s);hudReset(s)}
-  else if(s.state==='left')build(s);
-  // 'loading': READY handler starts it because s.i===idx
-}
-function go(n){
-  if(busy)return;const ni=idx+n;
-  if(ni<0){toast('This is the first game');return}
-  busy=true;leave(slots.get(idx));idx=ni;layout();activate(slots.get(idx));
-  setTimeout(()=>busy=false,420);
-}
-
-/* ---- Session lifecycle ---- */
-function start(s){
-  s.state='playing';s.t0=s.hb=performance.now();s.fl=0;M(s.v.id).plays++;
-  send(s,'START');L('start '+s.v.title);showEnd(0);
-}
-function finish(s,why){ // force/trigger end: ask guest for final result, but never wait long
-  if(s.state!=='playing')return;
-  s.state='ending';s.why=why;send(s,'END_GAME');
-  s.et=setTimeout(()=>kill(s,'no result after endGame'),RESULT_MS);
-}
-function onEnded(s){
-  s.elapsed=performance.now()-s.t0;
-  const r=s.res||{score:0,completionPercent:0};M(s.v.id).bestCompletion=Math.max(M(s.v.id).bestCompletion,r.completionPercent);
-  L('end '+s.v.title+' '+Math.round(r.completionPercent)+'% ('+s.why+')');
-  if(s.i===idx){
-    $('#etx').textContent=s.why==='timeout'?'Time’s up':r.completionPercent>=100?'Cleared!':'Game over';
-    $('#esub').textContent='Score '+Math.round(r.score)+' · '+Math.round(r.completionPercent)+'% complete';
-    showEnd(1);
-    s.at=setTimeout(()=>{if(idx===s.i&&s.state==='ended')go(1)},4500);
-  }
-}
-function replay(){
-  const s=slots.get(idx);if(!s||s.state!=='ended')return;
-  clearTimeout(s.at);s.dwell=(s.dwell||0)+s.elapsed;s.best=Math.max(s.best||0,s.res?s.res.completionPercent:0);s.rep=(s.rep||0)+1;
-  M(s.v.id).replays++;L('replay '+s.v.title);showEnd(0);build(s);
-}
-function kill(s,why){ // watchdog: terminate the guest outright and skip it
-  if(s.state==='dead')return;
-  clearTimeout(s.lt);clearTimeout(s.et);clearTimeout(s.at);
-  if(s.fr){s.fr.remove();s.fr=null}
-  s.state='dead';M(s.v.id).errors++;L('killed '+s.v.title+': '+why);
-  if(s.i===idx){showEnd(0);toast('Game stopped ('+why+'). Skipping…');setTimeout(()=>{if(idx===s.i)go(1)},650)}
-}
-
-/* ---- Implicit + explicit signals → taste profile (runs once when the player leaves a game) ---- */
-function leave(s){
-  if(!s||!(s.dwell>0||['playing','ending','ended'].includes(s.state)))return;
-  clearTimeout(s.at);clearTimeout(s.et);
-  const el=s.state==='ended'?s.elapsed:s.state==='loading'?0:performance.now()-s.t0, dwell=(s.dwell||0)+el;
-  const cur=s.res||s.r, comp=Math.max(s.best||0,cur?cur.completionPercent:0)/100, mt=M(s.v.id);
-  mt.dwellMs+=dwell;mt.bestCompletion=Math.max(mt.bestCompletion,comp*100);
-  const early=dwell<2000&&!s.liked;                         // swiped away almost immediately = strong negative
-  const imp=early?0:.5*comp+.3*Math.min(1,dwell/s.dur)+.2*Math.min(3,s.rep||0)/3;
-  let sig=early?-.6:(imp-.4)*2;sig=cl(sig+(s.liked||0)*(s.liked>0?.5:.8),-1,1);
-  profile.update(s.v.tags,sig);
-  L('leave '+s.v.title+' dwell '+(dwell/1000).toFixed(1)+'s comp '+Math.round(comp*100)+'% signal '+sig.toFixed(2));
-  Object.assign(s,{state:'left',dwell:0,rep:0,best:0,liked:0});
-}
-
-/* ---- Message listener: only accepts messages from a known iframe window ---- */
-function sane(r){return r&&typeof r==='object'?{score:num(r.score),timeElapsed:num(r.timeElapsed),completionPercent:cl(num(r.completionPercent),0,100),customData:r.customData&&typeof r.customData==='object'?r.customData:{}}:null}
-addEventListener('message',e=>{
-  const m=e.data;if(!m||m.sdk!==1)return;
-  const s=[...slots.values()].find(x=>x.fr&&x.fr.contentWindow===e.source);if(!s)return;
-  switch(m.type){
-    case 'READY':if(s.state!=='loading')break;clearTimeout(s.lt);s.state='ready';
-      s.dur=cl(num(m.meta&&m.meta.gameLength,SESSION_MS),MIN_MS,MAX_MS);if(s.i===idx)start(s);break;
-    case 'HB':s.hb=performance.now();s.fl=Math.max(0,s.fl-1);s.r=sane(m.r)||s.r;break;
-    case 'END_REQUEST':finish(s,'endGame');break;
-    case 'RESULT':if(s.state!=='ending')break;clearTimeout(s.et);s.res=sane(m.r)||{score:0,timeElapsed:0,completionPercent:0,customData:{}};s.state='ended';onEnded(s);break;
-    case 'ERROR':kill(s,'error: '+String(m.msg).slice(0,60));break;
-  }
-});
-
-/* ---- Host frame clock: ticks the active guest, enforces session timer + freeze watchdog ---- */
-let last=performance.now(), dir={x:0,y:0,active:false}, sentDir='';
-function loop(now){
-  const gap=now-last,dt=Math.min(.05,gap/1000);last=now;
-  const s=slots.get(idx);
-  if(s&&s.state==='playing'){
-    if(gap>500){s.t0+=gap;s.hb=now}                      // tab was hidden / host stalled: pause the clocks
-    const el=now-s.t0;
-    if(now-s.hb>HANG_MS)kill(s,'frozen');
-    else if(el>=s.dur)finish(s,'timeout');
-    else{
-      if(s.fl<3){s.fl++;send(s,'TICK',{dt})}              // back-pressure: never flood a slow guest
-      const k=JSON.stringify(dir);if(k!==sentDir){sentDir=k;send(s,'INPUT',{event:{type:'DIRECTIONAL_VECTOR',...dir}})}
+    /* ---- Embedded compliant micro-games (creator template = Pop Rush) ---- */
+    /* ---- Library loader: Library/manifest.json lists games; each game is its own HTML file ---- */
+    const LIB = 'Library/'; let BASES = {}, GAMES = {};
+    async function loadLibrary() {
+      const man = await (await fetch(LIB + 'manifest.json')).json();
+      await Promise.all(man.games.map(async gm => {
+        try {
+          const r = await fetch(LIB + gm.file); if (!r.ok) throw new Error(r.status);
+          GAMES[gm.id] = await r.text();
+          BASES[gm.id] = {title: gm.title, t: Object.fromEntries(Object.entries(gm.tags || {}).filter(([k]) => k in IDX))}
+        }
+        catch (e) {console.warn('Skipped library game', gm.id, e)}
+      }));
+      if (!Object.keys(BASES).length) throw new Error('Library is empty');
     }
-    hud(s,el);
-  }
-  requestAnimationFrame(loop);
-}
-function inp(type,extra){const s=slots.get(idx);if(s&&s.state==='playing')send(s,'INPUT',{event:{type,...extra}})}
 
-/* ---- Gesture + keyboard normalisation (host overlay owns all pointer input) ---- */
-const g=$('#gest');let d=null;
-g.onpointerdown=e=>{g.setPointerCapture(e.pointerId);d={x:e.clientX,y:e.clientY,t:performance.now(),mv:0,lp:0};
-  d.tm=setTimeout(()=>{if(d&&!d.mv){d.lp=1;const r=g.getBoundingClientRect();inp('ACTION_SECONDARY',{x:(d.x-r.left)/r.width,y:(d.y-r.top)/r.height})}},450)};
-g.onpointermove=e=>{if(!d)return;const dx=e.clientX-d.x,dy=e.clientY-d.y;if(Math.hypot(dx,dy)>12)d.mv=1;
-  dir=d.mv?{x:cl(dx/60,-1,1),y:cl(dy/60,-1,1),active:true}:dir};
-g.onpointerup=e=>{if(!d)return;clearTimeout(d.tm);const dx=e.clientX-d.x,dy=e.clientY-d.y,t=performance.now()-d.t;
-  dir={x:0,y:0,active:false};
-  if(Math.abs(dy)>90&&Math.abs(dy)>1.5*Math.abs(dx))go(dy<0?1:-1);                 // vertical flick = switch game
-  else if(!d.mv&&!d.lp&&t<450){const r=g.getBoundingClientRect();inp('ACTION_PRIMARY',{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height})}
-  d=null};
-g.onpointercancel=()=>{if(d)clearTimeout(d.tm);d=null;dir={x:0,y:0,active:false}};
-const K={};
-function kd(){const x=(K.ArrowRight?1:0)-(K.ArrowLeft?1:0),y=(K.ArrowDown?1:0)-(K.ArrowUp?1:0);if(x||y)dir={x,y,active:true};else if(!d)dir={x:0,y:0,active:false}}
-addEventListener('keydown',e=>{K[e.key]=1;
-  if(e.key===' '){e.preventDefault();if(!e.repeat)inp('ACTION_PRIMARY',{x:.5,y:.5})}
-  else if(e.key==='Shift'||e.key==='x')inp('ACTION_SECONDARY',{x:.5,y:.5});
-  else if(e.key==='j'||e.key==='PageDown')go(1);else if(e.key==='k'||e.key==='PageUp')go(-1);kd()});
-addEventListener('keyup',e=>{delete K[e.key];kd()});
-addEventListener('wheel',e=>{if(Math.abs(e.deltaY)>40)go(e.deltaY>0?1:-1)},{passive:true});
+    function srcdoc(v) {
+      const p = JSON.stringify({hue: v.theme.h, seed: v.seed, theme: v.theme.n}).replace(/</g, '\\u003c');
+      return '<!doctype html><meta charset=utf-8><style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{width:100%;height:100%;display:block}</style><canvas id=c width=360 height=640></canvas><script>window.PARAMS=' + p + ';' + SHIM + '<\/script>' + GAMES[v.base] + '<script>window.__boot()<\/script>';
+    }
 
-/* ---- HUD / panels ---- */
-let tt;const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),1800)};
-const showEnd=on=>{$('#end').hidden=!on};
-function hud(s,el){$('#bar i').style.width=Math.min(100,el/s.dur*100)+'%';$('#sc').textContent=s.r?'★ '+Math.round(s.r.score)+' · '+Math.round(s.r.completionPercent)+'%':''}
-function hudReset(s){
-  $('#bar i').style.width='0';$('#sc').textContent='';
-  const top=[...s.v.tags].map((w,i)=>[w,i]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).map(x=>DIMS[x[1]]).join(', ');
-  $('#cap').innerHTML='<b>'+esc(s.v.title)+'</b><span>'+esc(top)+'</span>';
-  $('#lk').classList.toggle('on',s.liked===1);
-}
-function openSheet(k){sheet=sheet===k?'':k;$('#sheet').hidden=!sheet;renderPanel()}
-function renderPanel(){
-  if(!sheet)return;const sh=$('#sheet');
-  if(sheet==='spec'){sh.innerHTML='<h3>Creator API</h3><pre>'+esc(SPEC)+'</pre><h3>Compliant template</h3><pre>'+esc(GAMES[Object.keys(GAMES)[0]]||'')+'</pre>';return}
-  const top=[...profile.v].map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>x[1]);
-  sh.innerHTML='<h3>Taste profile: 20 interests, each 0–100, scored independently</h3>'+
-   DIMS.map((n,i)=>'<div class=r><b>'+n+'</b><u><i class="'+(top.includes(i)&&profile.v[i]!==50?'t':'')+'" style="width:'+profile.v[i]+'%"></i></u><span>'+Math.round(profile.v[i])+'</span></div>').join('')+
-   '<h3>Event log</h3><pre>'+esc(log.slice(0,8).join('\n')||'Nothing yet.')+'</pre>';
-}
-$('#lk').onclick=()=>{const s=slots.get(idx);s.liked=s.liked===1?0:1;$('#lk').classList.toggle('on',s.liked===1);L((s.liked?'like ':'unlike ')+s.v.title)};
-$('#dl').onclick=()=>{const s=slots.get(idx);s.liked=-1;L('dislike '+s.v.title);toast('Got it. Showing fewer like this.');go(1)};
-$('#pf').onclick=()=>openSheet('prof');$('#sp').onclick=()=>openSheet('spec');
-$('#rp').onclick=replay;$('#nx').onclick=()=>go(1);
+    /* ---- Feed: slots for idx-1 / idx / idx+1, all preloaded; only idx is ticked ---- */
+    const feed = $('#feed'); let idx = 0, queue = [], slots = new Map(), busy = false, sheet = '';
+    const send = (s, type, d) => {if (s.fr && s.fr.contentWindow) s.fr.contentWindow.postMessage({sdk: 1, type, ...d}, '*')};
 
-loadLibrary().then(()=>{layout();activate(slots.get(0));requestAnimationFrame(loop);
-  toast('Flick up for the next game · tap · hold · drag')})
- .catch(e=>{$('#cap').innerHTML='<b>Library not found</b><span>Serve this folder over http (for example: python3 -m http.server) so Library/manifest.json can load.</span>'});
-</script>
+    function ensure(k) {if (k < 0) return; while (queue.length <= k) queue.push(route()); if (!slots.has(k)) slots.set(k, mkSlot(k))}
+    function mkSlot(k) {
+      const el = document.createElement('div'); el.className = 'slot'; el.style.transform = 'translateY(' + (k - idx) * 100 + '%)'; feed.append(el);
+      const s = {i: k, v: queue[k], el, dur: SESSION_MS, state: 'loading'}; build(s); return s;
+    }
+    function build(s) { // (re)create the sandboxed iframe; state machine: loading→ready→playing→ending→ended→left | dead
+      if (s.fr) s.fr.remove(); clearTimeout(s.lt); clearTimeout(s.et); clearTimeout(s.at);
+      Object.assign(s, {state: 'loading', r: null, res: null, fl: 0});
+      const f = document.createElement('iframe');
+      f.setAttribute('sandbox', 'allow-scripts'); f.title = s.v.title; f.srcdoc = srcdoc(s.v);
+      s.fr = f; s.el.prepend(f);
+      s.lt = setTimeout(() => {if (s.state === 'loading') kill(s, 'failed to initialise')}, LOAD_MS);
+    }
+    function layout() {
+      for (const k of [idx - 1, idx, idx + 1]) ensure(k);
+      for (const [k, s] of slots) {
+        if (Math.abs(k - idx) > 1) {s.fr && s.fr.remove(); clearTimeout(s.lt); s.el.remove(); slots.delete(k)}
+        else {s.el.style.transform = 'translateY(' + (k - idx) * 100 + '%)'; if (s.state === 'left' && k !== idx) build(s)} // keep neighbours warm
+      }
+    }
+    function activate(s) {
+      showEnd(0); hudReset(s);
+      if (s.state === 'ready') start(s);
+      else if (s.state === 'dead') {s.v = queue[s.i] = route(); build(s); hudReset(s)}
+      else if (s.state === 'left') build(s);
+      // 'loading': READY handler starts it because s.i===idx
+    }
+    function go(n) {
+      if (busy) return; const ni = idx + n;
+      if (ni < 0) {toast('This is the first game'); return }
+      busy = true; leave(slots.get(idx)); idx = ni; layout(); activate(slots.get(idx));
+      setTimeout(() => busy = false, 420);
+    }
+
+    /* ---- Session lifecycle ---- */
+    function start(s) {
+      s.state = 'playing'; s.t0 = s.hb = performance.now(); s.fl = 0; M(s.v.id).plays++;
+      send(s, 'START'); L('start ' + s.v.title); showEnd(0);
+    }
+    function finish(s, why) { // force/trigger end: ask guest for final result, but never wait long
+      if (s.state !== 'playing') return;
+      s.state = 'ending'; s.why = why; send(s, 'END_GAME');
+      s.et = setTimeout(() => kill(s, 'no result after endGame'), RESULT_MS);
+    }
+    function onEnded(s) {
+      s.elapsed = performance.now() - s.t0;
+      const r = s.res || {score: 0, completionPercent: 0}; M(s.v.id).bestCompletion = Math.max(M(s.v.id).bestCompletion, r.completionPercent);
+      L('end ' + s.v.title + ' ' + Math.round(r.completionPercent) + '% (' + s.why + ')');
+      if (s.i === idx) {
+        $('#etx').textContent = s.why === 'timeout' ? 'Time’s up' : r.completionPercent >= 100 ? 'Cleared!' : 'Game over';
+        $('#esub').textContent = 'Score ' + Math.round(r.score) + ' · ' + Math.round(r.completionPercent) + '% complete';
+        showEnd(1);
+        s.at = setTimeout(() => {if (idx === s.i && s.state === 'ended') go(1)}, 4500);
+      }
+    }
+    function replay() {
+      const s = slots.get(idx); if (!s || s.state !== 'ended') return;
+      clearTimeout(s.at); s.dwell = (s.dwell || 0) + s.elapsed; s.best = Math.max(s.best || 0, s.res ? s.res.completionPercent : 0); s.rep = (s.rep || 0) + 1;
+      M(s.v.id).replays++; L('replay ' + s.v.title); showEnd(0); build(s);
+    }
+    function kill(s, why) { // watchdog: terminate the guest outright and skip it
+      if (s.state === 'dead') return;
+      clearTimeout(s.lt); clearTimeout(s.et); clearTimeout(s.at);
+      if (s.fr) {s.fr.remove(); s.fr = null}
+      s.state = 'dead'; M(s.v.id).errors++; L('killed ' + s.v.title + ': ' + why);
+      if (s.i === idx) {showEnd(0); toast('Game stopped (' + why + '). Skipping…'); setTimeout(() => {if (idx === s.i) go(1)}, 650)}
+    }
+
+    /* ---- Implicit + explicit signals → taste profile (runs once when the player leaves a game) ---- */
+    function leave(s) {
+      if (!s || !(s.dwell > 0 || ['playing', 'ending', 'ended'].includes(s.state))) return;
+      clearTimeout(s.at); clearTimeout(s.et);
+      const el = s.state === 'ended' ? s.elapsed : s.state === 'loading' ? 0 : performance.now() - s.t0, dwell = (s.dwell || 0) + el;
+      const cur = s.res || s.r, comp = Math.max(s.best || 0, cur ? cur.completionPercent : 0) / 100, mt = M(s.v.id);
+      mt.dwellMs += dwell; mt.bestCompletion = Math.max(mt.bestCompletion, comp * 100);
+      const early = dwell < 2000 && !s.liked;                         // swiped away almost immediately = strong negative
+      const imp = early ? 0 : .5 * comp + .3 * Math.min(1, dwell / s.dur) + .2 * Math.min(3, s.rep || 0) / 3;
+      let sig = early ? -.6 : (imp - .4) * 2; sig = cl(sig + (s.liked || 0) * (s.liked > 0 ? .5 : .8), -1, 1);
+      profile.update(s.v.tags, sig);
+      L('leave ' + s.v.title + ' dwell ' + (dwell / 1000).toFixed(1) + 's comp ' + Math.round(comp * 100) + '% signal ' + sig.toFixed(2));
+      Object.assign(s, {state: 'left', dwell: 0, rep: 0, best: 0, liked: 0});
+    }
+
+    /* ---- Message listener: only accepts messages from a known iframe window ---- */
+    function sane(r) {return r && typeof r === 'object' ? {score: num(r.score), timeElapsed: num(r.timeElapsed), completionPercent: cl(num(r.completionPercent), 0, 100), customData: r.customData && typeof r.customData === 'object' ? r.customData : {}} : null}
+    addEventListener('message', e => {
+      const m = e.data; if (!m || m.sdk !== 1) return;
+      const s = [...slots.values()].find(x => x.fr && x.fr.contentWindow === e.source); if (!s) return;
+      switch (m.type) {
+        case 'READY': if (s.state !== 'loading') break; clearTimeout(s.lt); s.state = 'ready';
+          s.dur = cl(num(m.meta && m.meta.gameLength, SESSION_MS), MIN_MS, MAX_MS); if (s.i === idx) start(s); break;
+        case 'HB': s.hb = performance.now(); s.fl = Math.max(0, s.fl - 1); s.r = sane(m.r) || s.r; break;
+        case 'END_REQUEST': finish(s, 'endGame'); break;
+        case 'RESULT': if (s.state !== 'ending') break; clearTimeout(s.et); s.res = sane(m.r) || {score: 0, timeElapsed: 0, completionPercent: 0, customData: {}}; s.state = 'ended'; onEnded(s); break;
+        case 'ERROR': kill(s, 'error: ' + String(m.msg).slice(0, 60)); break;
+      }
+    });
+
+    /* ---- Host frame clock: ticks the active guest, enforces session timer + freeze watchdog ---- */
+    let last = performance.now(), dir = {x: 0, y: 0, active: false}, sentDir = '';
+    function loop(now) {
+      const gap = now - last, dt = Math.min(.05, gap / 1000); last = now;
+      const s = slots.get(idx);
+      if (s && s.state === 'playing') {
+        if (gap > 500) {s.t0 += gap; s.hb = now}                      // tab was hidden / host stalled: pause the clocks
+        const el = now - s.t0;
+        if (now - s.hb > HANG_MS) kill(s, 'frozen');
+        else if (el >= s.dur) finish(s, 'timeout');
+        else {
+          if (s.fl < 3) {s.fl++; send(s, 'TICK', {dt})}              // back-pressure: never flood a slow guest
+          const k = JSON.stringify(dir); if (k !== sentDir) {sentDir = k; send(s, 'INPUT', {event: {type: 'DIRECTIONAL_VECTOR', ...dir}})}
+        }
+        hud(s, el);
+      }
+      requestAnimationFrame(loop);
+    }
+    function inp(type, extra) {const s = slots.get(idx); if (s && s.state === 'playing') send(s, 'INPUT', {event: {type, ...extra}})}
+
+    /* ---- Gesture + keyboard normalisation (host overlay owns all pointer input) ---- */
+    const g = $('#gest'); let d = null;
+    g.onpointerdown = e => {
+      g.setPointerCapture(e.pointerId); d = {x: e.clientX, y: e.clientY, t: performance.now(), mv: 0, lp: 0};
+      d.tm = setTimeout(() => {if (d && !d.mv) {d.lp = 1; const r = g.getBoundingClientRect(); inp('ACTION_SECONDARY', {x: (d.x - r.left) / r.width, y: (d.y - r.top) / r.height})} }, 450)
+    };
+    g.onpointermove = e => {
+      if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (Math.hypot(dx, dy) > 12) d.mv = 1;
+      dir = d.mv ? {x: cl(dx / 60, -1, 1), y: cl(dy / 60, -1, 1), active: true} : dir
+    };
+    g.onpointerup = e => {
+      if (!d) return; clearTimeout(d.tm); const dx = e.clientX - d.x, dy = e.clientY - d.y, t = performance.now() - d.t;
+      dir = {x: 0, y: 0, active: false};
+      if (Math.abs(dy) > 90 && Math.abs(dy) > 1.5 * Math.abs(dx)) go(dy < 0 ? 1 : -1);                 // vertical flick = switch game
+      else if (!d.mv && !d.lp && t < 450) {const r = g.getBoundingClientRect(); inp('ACTION_PRIMARY', {x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height})}
+      d = null
+    };
+    g.onpointercancel = () => {if (d) clearTimeout(d.tm); d = null; dir = {x: 0, y: 0, active: false}};
+    const K = {};
+    function kd() {const x = (K.ArrowRight ? 1 : 0) - (K.ArrowLeft ? 1 : 0), y = (K.ArrowDown ? 1 : 0) - (K.ArrowUp ? 1 : 0); if (x || y) dir = {x, y, active: true}; else if (!d) dir = {x: 0, y: 0, active: false}}
+    addEventListener('keydown', e => {
+      K[e.key] = 1;
+      if (e.key === ' ') {e.preventDefault(); if (!e.repeat) inp('ACTION_PRIMARY', {x: .5, y: .5})}
+      else if (e.key === 'Shift' || e.key === 'x') inp('ACTION_SECONDARY', {x: .5, y: .5});
+      else if (e.key === 'j' || e.key === 'PageDown') go(1); else if (e.key === 'k' || e.key === 'PageUp') go(-1); kd()
+    });
+    addEventListener('keyup', e => {delete K[e.key]; kd()});
+    addEventListener('wheel', e => {if (Math.abs(e.deltaY) > 40) go(e.deltaY > 0 ? 1 : -1)}, {passive: true});
+
+    /* ---- HUD / panels ---- */
+    let tt; const toast = m => {const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 1800)};
+    const showEnd = on => {$('#end').hidden = !on};
+    function hud(s, el) {$('#bar i').style.width = Math.min(100, el / s.dur * 100) + '%'; $('#sc').textContent = s.r ? '★ ' + Math.round(s.r.score) + ' · ' + Math.round(s.r.completionPercent) + '%' : ''}
+    function hudReset(s) {
+      $('#bar i').style.width = '0'; $('#sc').textContent = '';
+      const top = [...s.v.tags].map((w, i) => [w, i]).filter(x => x[0] > 0).sort((a, b) => b[0] - a[0]).map(x => DIMS[x[1]]).join(', ');
+      $('#cap').innerHTML = '<b>' + esc(s.v.title) + '</b><span>' + esc(top) + '</span>';
+      $('#lk').classList.toggle('on', s.liked === 1);
+    }
+    function openSheet(k) {sheet = sheet === k ? '' : k; $('#sheet').hidden = !sheet; renderPanel()}
+    function renderPanel() {
+      if (!sheet) return; const sh = $('#sheet');
+      if (sheet === 'spec') {sh.innerHTML = '<h3>Creator API</h3><pre>' + esc(SPEC) + '</pre><h3>Compliant template</h3><pre>' + esc(GAMES[Object.keys(GAMES)[0]] || '') + '</pre>'; return }
+      const top = [...profile.v].map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).slice(0, 3).map(x => x[1]);
+      sh.innerHTML = '<h3>Taste profile: 20 interests, each 0–100, scored independently</h3>' +
+        DIMS.map((n, i) => '<div class=r><b>' + n + '</b><u><i class="' + (top.includes(i) && profile.v[i] !== 50 ? 't' : '') + '" style="width:' + profile.v[i] + '%"></i></u><span>' + Math.round(profile.v[i]) + '</span></div>').join('') +
+        '<h3>Event log</h3><pre>' + esc(log.slice(0, 8).join('\n') || 'Nothing yet.') + '</pre>';
+    }
+    $('#lk').onclick = () => {const s = slots.get(idx); s.liked = s.liked === 1 ? 0 : 1; $('#lk').classList.toggle('on', s.liked === 1); L((s.liked ? 'like ' : 'unlike ') + s.v.title)};
+    $('#dl').onclick = () => {const s = slots.get(idx); s.liked = -1; L('dislike ' + s.v.title); toast('Got it. Showing fewer like this.'); go(1)};
+    $('#pf').onclick = () => openSheet('prof'); $('#sp').onclick = () => openSheet('spec');
+    $('#rp').onclick = replay; $('#nx').onclick = () => go(1);
+
+    loadLibrary().then(() => {
+      layout(); activate(slots.get(0)); requestAnimationFrame(loop);
+      toast('Flick up for the next game · tap · hold · drag')
+    })
+      .catch(e => {$('#cap').innerHTML = '<b>Library not found</b><span>Serve this folder over http (for example: python3 -m http.server) so Library/manifest.json can load.</span>'});
+  </script>
 </body>
+
 </html>
