@@ -1,0 +1,29 @@
+<!-- microfeed: {"title":"Lights Out","tags":{"Puzzle":1,"Strategy":0.5,"Minimal":0.4}} -->
+<script>
+/* Puzzle: tapping a cell toggles it and its neighbours. Turn every light off. Hold = hint (once). */
+window.GameMeta={title:'Lights Out',gameLength:15000};
+var W=360,H=640,R=mul(PARAMS.seed),g=[],need=[],t=0,moves=0,hint=1,hc=-1,ht=0,done=0,i,n=0;
+function mul(a){return function(){a|=0;a=a+0x6D2B79F5|0;var x=Math.imul(a^a>>>15,1|a);x=x+Math.imul(x^x>>>7,61|x)^x;return((x^x>>>14)>>>0)/4294967296}}
+for(i=0;i<9;i++){g[i]=0;need[i]=0}
+while(n<5){i=(R()*9)|0;if(!need[i]){need[i]=1;flip(i);n++}} // scramble from solved, so it is always solvable
+function flip(i){var x=i%3,y=(i/3)|0;[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(function(d){var a=x+d[0],b=y+d[1];if(a>=0&&a<3&&b>=0&&b<3)g[b*3+a]^=1})}
+function updateGame(dt){t+=dt;ht-=dt}
+function handleInput(e){
+  if(done)return;
+  if(e.type==='ACTION_SECONDARY'&&hint){hint=0;hc=need.indexOf(1);ht=2;return}
+  if(e.type!=='ACTION_PRIMARY')return;
+  var px=e.x*W-30,py=e.y*H-170;if(px<0||py<0||px>=300||py>=300)return;
+  var k=Math.floor(py/100)*3+Math.floor(px/100);flip(k);need[k]^=1;moves++;
+  if(g.every(function(v){return !v})){done=1;Platform.endGame()}
+}
+function renderAll(c){
+  var h=PARAMS.hue;c.fillStyle='hsl('+h+',35%,10%)';c.fillRect(0,0,W,H);
+  for(var k=0;k<9;k++){var x=30+(k%3)*100+3,y=170+((k/3)|0)*100+3;
+    c.fillStyle=g[k]?'hsl('+((h+40)%360)+',90%,62%)':'hsl('+h+',25%,20%)';c.fillRect(x,y,94,94);
+    if(ht>0&&k===hc){c.strokeStyle='#fff';c.lineWidth=4;c.strokeRect(x+4,y+4,86,86)}}
+  c.fillStyle='#fff';c.font='bold 24px system-ui';c.fillText(done?'Solved!':'Lights out',16,60);
+  c.font='14px system-ui';c.fillText('Moves '+moves+(hint?'  ·  hold: hint':''),16,86);
+}
+function getResult(){var on=g.filter(function(v){return v}).length;
+  return{score:done?100+Math.max(0,Math.round((14-t)*10)):(9-on)*5,timeElapsed:t,completionPercent:done?100:Math.round((9-on)/9*90),customData:{moves:moves}}}
+</script>

@@ -1,24 +1,54 @@
 {
- "games": [
-  {
-   "id": "pop",
-   "file": "pop-rush.html",
-   "title": "Pop Rush",
-   "tags": {
-    "Reflex": 1,
-    "Precision": 0.7,
-    "Arcade": 0.3
-   }
-  },
-  {
-   "id": "dodge",
-   "file": "drift-dash.html",
-   "title": "Drift Dash",
-   "tags": {
-    "Reflex": 0.6,
-    "Racing": 0.7,
-    "Strategy": 0.2
-   }
-  }
- ]
+  "games": [
+    {
+      "id": "beat-tap",
+      "file": "beat-tap.html",
+      "title": "Beat Tap",
+      "tags": {
+        "Rhythm": 1,
+        "Music": 0.8,
+        "Precision": 0.5
+      }
+    },
+    {
+      "id": "dodge",
+      "file": "drift-dash.html",
+      "title": "Drift Dash",
+      "tags": {
+        "Reflex": 0.6,
+        "Racing": 0.7,
+        "Strategy": 0.2
+      }
+    },
+    {
+      "id": "lights-out",
+      "file": "lights-out.html",
+      "title": "Lights Out",
+      "tags": {
+        "Puzzle": 1,
+        "Strategy": 0.5,
+        "Minimal": 0.4
+      }
+    },
+    {
+      "id": "memory-flash",
+      "file": "memory-flash.html",
+      "title": "Memory Flash",
+      "tags": {
+        "Memory": 1,
+        "Puzzle": 0.3,
+        "Minimal": 0.2
+      }
+    },
+    {
+      "id": "pop",
+      "file": "pop-rush.html",
+      "title": "Pop Rush",
+      "tags": {
+        "Reflex": 1,
+        "Precision": 0.7,
+        "Arcade": 0.3
+      }
+    }
+  ]
 }
