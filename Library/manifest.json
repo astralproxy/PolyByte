@@ -6,7 +6,6 @@
       "title": "Beat Tap",
       "tags": {
         "Rhythm": 1,
-        "Music": 0.8,
         "Precision": 0.5
       },
       "icon": "🥁",
@@ -54,8 +53,7 @@
       "title": "Pop Rush",
       "tags": {
         "Reflex": 1,
-        "Precision": 0.7,
-        "Arcade": 0.3
+        "Precision": 0.7
       },
       "icon": "🎯",
       "description": "Tap the targets before they fade. Clear 12 pops in 15 seconds; hold for a bomb."

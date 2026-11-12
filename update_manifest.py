@@ -16,8 +16,8 @@ Tags are interest names (see DIMS) with weights in (0, 1]. icon (an emoji) and d
 import argparse, json, re, sys
 from pathlib import Path
 
-DIMS = ['Reflex','Precision','Rhythm','Memory','Puzzle','Strategy','Racing','Arcade','Retro','Neon',
-        'Cosmic','Nature','Food','Animals','Horror','Cozy','Sports','Music','Humor','Minimal']
+DIMS = ['Asymmetric','Chance','Competitive','Cooperative','Endless','Endurance','Memory','Minimal','Physics','Precision',
+        'Puzzle','Racing','Reflex','Rhythm','Sorting','Spatial','Sports','Strategy','Survival','Turn-Based']
 REQUIRED = ['getResult', 'updateGame', 'handleInput', 'renderAll']
 
 def has_fn(text, name):

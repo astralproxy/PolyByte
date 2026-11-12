@@ -21,7 +21,7 @@ At the top of the game file, add a valid JSON metadata comment for the post-inte
 - The filename stem becomes the game ID; choose a unique filename.
 - Keep the comment's title identical to `window.GameMeta.title`.
 - Use a concise description under 140 characters and a suitable icon.
-- Use only these tag names: `Reflex`, `Precision`, `Rhythm`, `Memory`, `Puzzle`, `Strategy`, `Racing`, `Arcade`, `Retro`, `Neon`, `Cosmic`, `Nature`, `Food`, `Animals`, `Horror`, `Cozy`, `Sports`, `Music`, `Humor`, and `Minimal`.
+- Use only these tag names: `Asymmetric`, `Chance`, `Competitive`, `Cooperative`, `Endless`, `Endurance`, `Memory`, `Minimal`, `Physics`, `Precision`, `Puzzle`, `Racing`, `Reflex`, `Rhythm`, `Sorting`, `Spatial`, `Sports`, `Strategy`, `Survival`, and `Turn-Based`.
 - Tag weights must be numbers in `(0, 1]`. Use only the few tags that meaningfully describe the game.
 
 After integration, the maintainer syncs `Library/manifest.json` by running `python update_manifest.py` from the repository root. Do not perform this integration step as part of implementing the game.

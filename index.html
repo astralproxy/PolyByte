@@ -70,13 +70,15 @@
     const LOAD_MS = 3000, HANG_MS = 2000, RESULT_MS = 600;    // init, heartbeat, endGame response deadlines
 
     /* ---- Taste profile: 20 independent interest scores, 0–100, non-zero-sum ---- */
-    const DIMS = ['Reflex', 'Precision', 'Rhythm', 'Memory', 'Puzzle', 'Strategy', 'Racing', 'Arcade', 'Retro', 'Neon', 'Cosmic', 'Nature', 'Food', 'Animals', 'Horror', 'Cozy', 'Sports', 'Music', 'Humor', 'Minimal'];
+    const DIMS = ['Asymmetric', 'Chance', 'Competitive', 'Cooperative', 'Endless', 'Endurance', 'Memory', 'Minimal', 'Physics', 'Precision', 'Puzzle', 'Racing', 'Reflex', 'Rhythm', 'Sorting', 'Spatial', 'Sports', 'Strategy', 'Survival', 'Turn-Based'];
+    // v1 stored scores by array position in this pre-alphabetized order.
+    const LEGACY_TASTE_DIMS = ['Reflex', 'Endurance', 'Rhythm', 'Precision', 'Memory', 'Spatial', 'Physics', 'Survival', 'Sorting', 'Racing', 'Asymmetric', 'Competitive', 'Cooperative', 'Turn-Based', 'Chance', 'Strategy', 'Puzzle', 'Minimal', 'Endless', 'Sports'];
     const IDX = Object.fromEntries(DIMS.map((d, i) => [d, i]));
     const TASTE_SCORE_MIN = 0, TASTE_SCORE_MAX = 100, TASTE_INITIAL_SCORE = 50, TASTE_LEARNING_RATE = 14;
     const TASTE_COMPLETION_WEIGHT = .5, TASTE_DWELL_WEIGHT = .3, TASTE_REPLAY_WEIGHT = .2, TASTE_REPLAY_CAP = 3, TASTE_FULL_DWELL = 1;
     const TASTE_EARLY_EXIT_MS = 2000, TASTE_EARLY_EXIT_SIGNAL = -.6, TASTE_NEUTRAL_IMPACT = .4, TASTE_SIGNAL_SCALE = 2;
     const TASTE_LIKE_BONUS = .5, TASTE_DISLIKE_PENALTY = .8, TASTE_SIGNAL_MIN = -1, TASTE_SIGNAL_MAX = 1;
-    const TASTE_STORAGE_KEY = 'polybyte.taste-profile.v1';
+    const TASTE_STORAGE_KEY = 'polybyte.taste-profile.v2', LEGACY_TASTE_STORAGE_KEY = 'polybyte.taste-profile.v1';
     class TasteProfile {
       constructor() {this.v = new Float32Array(DIMS.length).fill(TASTE_INITIAL_SCORE)}
       // Each tagged interest moves by learning rate × tag weight × feedback signal, clamped to the score range.
@@ -89,16 +91,30 @@
     function loadTasteProfile() {
       try {
         const saved = localStorage.getItem(TASTE_STORAGE_KEY);
-        if (saved === null) return;
+        if (saved !== null) {
+          let scores;
+          try {scores = JSON.parse(saved)}
+          catch (e) {console.warn('Ignoring malformed saved Taste profile.', e)}
+          if (scores && typeof scores === 'object' && !Array.isArray(scores) && Object.keys(scores).length === DIMS.length &&
+              DIMS.every(d => Object.prototype.hasOwnProperty.call(scores, d) && typeof scores[d] === 'number' &&
+                Number.isFinite(scores[d]) && scores[d] >= TASTE_SCORE_MIN && scores[d] <= TASTE_SCORE_MAX)) {
+            profile.v.set(DIMS.map(d => scores[d]));
+            return;
+          }
+          if (scores !== undefined) console.warn('Ignoring invalid saved Taste profile: expected one score from 0 to 100 per interest.');
+        }
+        const legacy = localStorage.getItem(LEGACY_TASTE_STORAGE_KEY);
+        if (legacy === null) return;
         let values;
-        try {values = JSON.parse(saved)}
-        catch (e) {console.warn('Ignoring malformed saved Taste profile.', e); return}
-        if (!Array.isArray(values) || values.length !== DIMS.length ||
+        try {values = JSON.parse(legacy)}
+        catch (e) {console.warn('Ignoring malformed legacy Taste profile.', e); return}
+        if (!Array.isArray(values) || values.length !== LEGACY_TASTE_DIMS.length ||
             values.some(v => typeof v !== 'number' || !Number.isFinite(v) || v < TASTE_SCORE_MIN || v > TASTE_SCORE_MAX)) {
-          console.warn('Ignoring invalid saved Taste profile: expected one score from 0 to 100 per interest.');
+          console.warn('Ignoring invalid legacy Taste profile.');
           return;
         }
-        profile.v.set(values);
+        for (let i = 0; i < LEGACY_TASTE_DIMS.length; i++) profile.v[IDX[LEGACY_TASTE_DIMS[i]]] = values[i];
+        saveTasteProfile();
       }
       catch (e) {
         tasteStorageAvailable = false;
@@ -108,7 +124,8 @@
     }
     function saveTasteProfile() {
       if (!tasteStorageAvailable) return;
-      try {localStorage.setItem(TASTE_STORAGE_KEY, JSON.stringify(Array.from(profile.v)))}
+      const scores = Object.fromEntries(DIMS.map((d, i) => [d, profile.v[i]]));
+      try {localStorage.setItem(TASTE_STORAGE_KEY, JSON.stringify(scores))}
       catch (e) {
         tasteStorageAvailable = false;
         console.warn('Unable to save the Taste profile locally.', e);
