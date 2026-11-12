@@ -1,0 +1,24 @@
+{
+ "games": [
+  {
+   "id": "pop",
+   "file": "pop-rush.html",
+   "title": "Pop Rush",
+   "tags": {
+    "Reflex": 1,
+    "Precision": 0.7,
+    "Arcade": 0.3
+   }
+  },
+  {
+   "id": "dodge",
+   "file": "drift-dash.html",
+   "title": "Drift Dash",
+   "tags": {
+    "Reflex": 0.6,
+    "Racing": 0.7,
+    "Strategy": 0.2
+   }
+  }
+ ]
+}

@@ -1,0 +1,31 @@
+<!-- Microfeed library game. Contract: GameMeta, getResult(), updateGame(dt), handleInput(e), renderAll(ctx); call Platform.endGame() to finish.
+     The host injects the canvas, window.PARAMS and the SDK bridge; do not add them here. Register this file in manifest.json. -->
+<script>
+/* Drift Dash – drag or use arrows to steer, grab coins, dodge blocks. */
+window.GameMeta={title:'Drift Dash',gameLength:15000};
+var W=360,H=640,R=mul(PARAMS.seed),px=180,vx=0,items=[],lives=3,coins=0,GOAL=10,score=0,t=0,sp=0,sh=0,dsh=1;
+function mul(a){return function(){a|=0;a=a+0x6D2B79F5|0;var x=Math.imul(a^a>>>15,1|a);x=x+Math.imul(x^x>>>7,61|x)^x;return((x^x>>>14)>>>0)/4294967296}}
+function updateGame(dt){
+  t+=dt;sh-=dt;px=Math.max(24,Math.min(336,px+vx*260*dt));sp-=dt;
+  if(sp<=0){sp=.45;items.push({x:20+R()*320,y:-20,c:R()<.4,v:190+t*8})}
+  items.forEach(function(i){i.y+=i.v*dt});
+  items=items.filter(function(i){
+    if(i.y>H+20)return false;
+    if(Math.abs(i.x-px)<30&&Math.abs(i.y-570)<28){if(i.c){coins++;score+=10}else if(sh<=0){lives--;sh=.8}return false}
+    return true});
+  if(coins>=GOAL||lives<=0)Platform.endGame();
+}
+function handleInput(e){
+  if(e.type==='DIRECTIONAL_VECTOR')vx=e.active?e.x:0;
+  if(e.type==='ACTION_PRIMARY')px=e.x*W;
+  if(e.type==='ACTION_SECONDARY'&&dsh){dsh=0;sh=1.2}
+}
+function renderAll(c){
+  var h=PARAMS.hue;c.fillStyle='hsl('+h+',40%,10%)';c.fillRect(0,0,W,H);
+  items.forEach(function(i){c.fillStyle=i.c?'#ffd23f':'hsl('+((h+180)%360)+',70%,55%)';c.beginPath();if(i.c)c.arc(i.x,i.y,12,0,7);else c.rect(i.x-14,i.y-14,28,28);c.fill()});
+  c.fillStyle=sh>0?'#8ff':'#fff';c.fillRect(px-20,556,40,28);
+  c.fillStyle='#fff';c.font='bold 26px system-ui';c.fillText(score,16,44);
+  c.font='16px system-ui';c.fillText('♥'.repeat(Math.max(0,lives))+(dsh?'   hold: shield':''),16,68);
+}
+function getResult(){return{score:score,timeElapsed:t,completionPercent:Math.min(100,coins/GOAL*100),customData:{coins:coins,lives:lives}}}
+</script>

@@ -1,0 +1,32 @@
+<!-- Microfeed library game. Contract: GameMeta, getResult(), updateGame(dt), handleInput(e), renderAll(ctx); call Platform.endGame() to finish.
+     The host injects the canvas, window.PARAMS and the SDK bridge; do not add them here. Register this file in manifest.json. -->
+<script>
+/* Creator template – Pop Rush: tap targets before they fade. */
+window.GameMeta={title:'Pop Rush',gameLength:15000};
+var W=360,H=640,R=mul(PARAMS.seed),tg=[],fx=[],score=0,hit=0,miss=0,t=0,sp=0,bomb=1,GOAL=12;
+function mul(a){return function(){a|=0;a=a+0x6D2B79F5|0;var x=Math.imul(a^a>>>15,1|a);x=x+Math.imul(x^x>>>7,61|x)^x;return((x^x>>>14)>>>0)/4294967296}}
+function updateGame(dt){
+  t+=dt;sp-=dt;
+  if(sp<=0){sp=.55;tg.push({x:40+R()*280,y:90+R()*460,r:34,age:0})}
+  tg.forEach(function(g){g.age+=dt});
+  tg=tg.filter(function(g){if(g.age>1.6){miss++;return false}return true});
+  fx.forEach(function(f){f.a-=dt*2});fx=fx.filter(function(f){return f.a>0});
+}
+function handleInput(e){
+  var x=(e.x||0)*W,y=(e.y||0)*H;
+  if(e.type==='ACTION_PRIMARY'){
+    var h=tg.filter(function(g){return Math.hypot(g.x-x,g.y-y)<g.r+10})[0];
+    if(h){tg.splice(tg.indexOf(h),1);hit++;score+=10;fx.push({x:h.x,y:h.y,a:1})}else score=Math.max(0,score-2);
+    if(hit>=GOAL)Platform.endGame();
+  }
+  if(e.type==='ACTION_SECONDARY'&&bomb){bomb=0;hit+=tg.length;score+=tg.length*5;tg=[];if(hit>=GOAL)Platform.endGame()}
+}
+function renderAll(c){
+  var h=PARAMS.hue;c.fillStyle='hsl('+h+',45%,12%)';c.fillRect(0,0,W,H);
+  tg.forEach(function(g){var k=1-g.age/1.6;c.fillStyle='hsl('+((h+40)%360)+',90%,'+(40+k*25)+'%)';c.beginPath();c.arc(g.x,g.y,g.r*(.6+.4*k),0,7);c.fill()});
+  fx.forEach(function(f){c.strokeStyle='rgba(255,255,255,'+f.a+')';c.lineWidth=3;c.beginPath();c.arc(f.x,f.y,40*(2-f.a),0,7);c.stroke()});
+  c.fillStyle='#fff';c.font='bold 28px system-ui';c.fillText(score,16,44);
+  c.font='13px system-ui';c.fillText(hit+'/'+GOAL+(bomb?'  ·  hold: bomb':''),16,66);
+}
+function getResult(){return{score:score,timeElapsed:t,completionPercent:Math.min(100,hit/GOAL*100),customData:{hit:hit,miss:miss}}}
+</script>
