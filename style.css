@@ -1,0 +1,284 @@
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --bg: #e6e3ee;
+  --ink: #14121c;
+  --hot: #ff5a36;
+  --lime: #c6ff3d
+}
+
+html {
+  scroll-padding-top: env(safe-area-inset-top, 0px)
+}
+
+@media(prefers-color-scheme:dark) {
+  :root:not([data-theme=light]) {
+    --bg: #0b0912;
+    --ink: #f3f0fa
+  }
+}
+
+:root[data-theme=dark] {
+  --bg: #0b0912;
+  --ink: #f3f0fa
+}
+
+* {
+  box-sizing: border-box
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.4 "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  overscroll-behavior: none
+}
+
+[hidden] {
+  display: none !important
+}
+
+#stage {
+  position: relative;
+  height: min(100%, 177.78vw);
+  aspect-ratio: 9/16;
+  background: #000;
+  overflow: hidden;
+  color: #fff;
+  border-radius: min(22px, 3vw);
+  user-select: none;
+  -webkit-user-select: none
+}
+
+#feed,
+#gest {
+  position: absolute;
+  inset: 0
+}
+
+#gest {
+  z-index: 5;
+  touch-action: none;
+  cursor: grab
+}
+
+.slot {
+  position: absolute;
+  inset: 0;
+  transition: transform .38s cubic-bezier(.3, .9, .3, 1);
+  background: #000
+}
+
+.slot iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  pointer-events: none
+}
+
+#bar {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: #fff3
+}
+
+#bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--lime)
+}
+
+#sc {
+  position: absolute;
+  z-index: 6;
+  top: 12px;
+  right: 14px;
+  font-weight: 700;
+  text-shadow: 0 1px 4px #000
+}
+
+#rail {
+  position: absolute;
+  z-index: 8;
+  right: 10px;
+  bottom: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px
+}
+
+#rail button {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid #fff5;
+  background: #000a;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer
+}
+
+#rail button.on {
+  background: var(--hot);
+  border-color: var(--hot)
+}
+
+#rail button:focus-visible,
+#end button:focus-visible {
+  outline: 3px solid var(--lime);
+  outline-offset: 2px
+}
+
+#cap {
+  position: absolute;
+  z-index: 6;
+  left: 14px;
+  right: 72px;
+  bottom: 18px;
+  text-shadow: 0 1px 5px #000;
+  pointer-events: none
+}
+
+#cap b {
+  font-size: 18px;
+  display: block
+}
+
+#cap span {
+  opacity: .85
+}
+
+#end {
+  position: absolute;
+  z-index: 7;
+  inset: auto 0 0 0;
+  padding: 26px 20px 24px;
+  background: linear-gradient(transparent, #000d 35%);
+  text-align: center
+}
+
+#end h2 {
+  margin: 0 0 4px;
+  font-size: 30px
+}
+
+#end p {
+  margin: 0 0 14px;
+  opacity: .85
+}
+
+#end button {
+  font: inherit;
+  font-weight: 700;
+  padding: 11px 22px;
+  margin: 0 5px;
+  border-radius: 999px;
+  border: 0;
+  cursor: pointer;
+  background: var(--lime);
+  color: #14121c
+}
+
+#end button+button {
+  background: #fff2;
+  color: #fff
+}
+
+#toast {
+  position: absolute;
+  z-index: 9;
+  left: 50%;
+  top: 48px;
+  transform: translateX(-50%);
+  background: #000c;
+  padding: 8px 14px;
+  border-radius: 999px;
+  opacity: 0;
+  transition: opacity .25s;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: 94%;
+  overflow: hidden;
+  text-overflow: ellipsis
+}
+
+#toast.on {
+  opacity: 1
+}
+
+#sheet {
+  position: absolute;
+  z-index: 10;
+  inset: auto 0 0 0;
+  max-height: 72%;
+  overflow: auto;
+  background: #0d0b14f2;
+  padding: 14px 16px 20px;
+  border-radius: 18px 18px 0 0
+}
+
+#sheet h3 {
+  margin: 12px 0 6px;
+  font-size: 14px
+}
+
+#sheet pre {
+  margin: 0;
+  font: 11px/1.45 ui-monospace, Menlo, monospace;
+  white-space: pre-wrap;
+  color: #d9d4ea
+}
+
+.r {
+  display: grid;
+  grid-template-columns: 76px 1fr 30px;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  margin: 3px 0
+}
+
+.r u {
+  display: block;
+  height: 8px;
+  background: #fff2;
+  border-radius: 4px;
+  overflow: hidden
+}
+
+.r i {
+  display: block;
+  height: 100%;
+  background: #8d86a8
+}
+
+.r i.t {
+  background: var(--lime)
+}
+
+.r span {
+  text-align: right
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .slot {
+    transition: none
+  }
+}
