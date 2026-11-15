@@ -1,0 +1,1224 @@
+<!-- microfeed: {"title":"Slimeball 8-Bit Arcade","icon":"🏀","description":"8-bit arcade slime basketball game with precision physics and chiptune sound.","tags":{"Sports":1,"Precision":0.8,"Arcade":0.5}} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SLIMEBALL - 8-Bit Arcade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #100e1c;
+      --cabinet-trim: #2b2740;
+      --accent-green: #4ade80;
+      --accent-orange: #fb923c;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-dark);
+      color: #f8fafc;
+      font-family: 'Press Start 2P', monospace;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Arcade Machine Frame */
+    #arcade-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      height: 100%;
+      max-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+    }
+
+    /* Top Control Bar (CRT & Sound Toggles) */
+    #top-bar {
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 4px;
+      font-size: 10px;
+      color: #94a3b8;
+      z-index: 20;
+    }
+
+    .arcade-title-badge {
+      color: #4ade80;
+      text-shadow: 2px 2px 0 #14532d;
+      letter-spacing: 1px;
+      font-size: 10px;
+    }
+
+    .util-buttons {
+      display: flex;
+      gap: 6px;
+    }
+
+    .pixel-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      padding: 4px 6px;
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 2px solid #475569;
+      box-shadow: 0 3px 0 #0f172a;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: transform 0.05s;
+    }
+
+    .pixel-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #0f172a;
+    }
+
+    .pixel-btn.active {
+      background: #15803d;
+      border-color: #4ade80;
+      color: #ffffff;
+    }
+
+    /* Screen Bezel (Host Canvas Container) */
+    #screen-container {
+      position: relative;
+      width: 360px;
+      height: 640px;
+      max-width: 100%;
+      max-height: calc(100vh - 100px);
+      background: #000;
+      border: 6px solid #334155;
+      border-radius: 12px;
+      box-shadow:
+        0 0 0 3px #0f172a,
+        0 12px 30px rgba(0, 0, 0, 0.8),
+        inset 0 0 24px rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* Optional CRT Scanlines Overlay */
+    #crt-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%,
+        rgba(0, 0, 0, 0.28) 50%
+      ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.04),
+        rgba(0, 255, 0, 0.02),
+        rgba(0, 0, 255, 0.04)
+      );
+      background-size: 100% 4px, 6px 100%;
+      box-shadow: inset 0 0 35px rgba(0, 0, 0, 0.55);
+      z-index: 10;
+      transition: opacity 0.2s ease;
+    }
+
+    #crt-overlay.hidden {
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="arcade-wrapper">
+    <!-- Top Utility Header -->
+    <div id="top-bar">
+      <div class="arcade-title-badge">SLIMEBALL</div>
+      <div class="util-buttons">
+        <button id="btn-crt" class="pixel-btn active" title="Toggle CRT Scanlines">CRT:ON</button>
+        <button id="btn-mute" class="pixel-btn active" title="Toggle 8-Bit Audio">SFX:ON</button>
+      </div>
+    </div>
+
+    <!-- Main 360x640 CRT Monitor Canvas Container as required by Host -->
+    <div id="screen-container">
+      <canvas id="c" width="360" height="640"></canvas>
+      <div id="crt-overlay"></div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * SLIMEBALL - 8-BIT RETRO ARCADE GAME (PolyByte Library Standard)
+     * Pure procedural pixel-art renderer, custom 2D circle-dome & rim physics,
+     * Web Audio API chiptune synthesizer, and host SDK integration in a single self-contained file.
+     */
+
+    // =========================================================================
+    // 1. WEB AUDIO API 8-BIT CHIPTUNE SOUND SYNTHESIZER
+    // =========================================================================
+    class RetroAudio {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playTone(freqStart, freqEnd, duration, type = 'square', volume = 0.12, delay = 0) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freqStart, now);
+        if (freqEnd !== freqStart) {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), now + duration);
+        }
+
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+
+      jump() {
+        this.playTone(150, 440, 0.14, 'square', 0.10);
+        this.playTone(110, 320, 0.14, 'triangle', 0.12);
+      }
+
+      slimeBounce(intensity = 1) {
+        const base = 220 + Math.min(120, intensity * 40);
+        this.playTone(base, base * 1.9, 0.12, 'triangle', 0.18);
+        this.playTone(base * 0.75, base * 1.4, 0.10, 'square', 0.08);
+      }
+
+      rimHit() {
+        this.playTone(580, 290, 0.07, 'square', 0.11);
+        this.playTone(820, 410, 0.05, 'sawtooth', 0.07);
+      }
+
+      backboardHit() {
+        this.playTone(180, 95, 0.08, 'triangle', 0.14);
+      }
+
+      floorBounce(speed) {
+        const vol = Math.min(0.14, Math.max(0.02, speed * 0.025));
+        this.playTone(135, 70, 0.07, 'triangle', vol);
+      }
+
+      score(isSwish = false, combo = 1) {
+        const pitchBoost = 1 + Math.min(0.35, (combo - 1) * 0.06);
+        const notes = isSwish
+          ? [523.25, 659.25, 783.99, 1046.50, 1318.51]
+          : [523.25, 659.25, 783.99, 1046.50];
+
+        notes.forEach((freq, idx) => {
+          this.playTone(freq * pitchBoost, freq * pitchBoost, 0.09, 'square', 0.12, idx * 0.065);
+        });
+      }
+
+      serve() {
+        this.playTone(660, 880, 0.06, 'square', 0.07);
+      }
+
+      tick(urgent = false) {
+        this.playTone(urgent ? 880 : 440, urgent ? 880 : 440, 0.05, 'square', 0.08);
+      }
+
+      gameOver() {
+        const melody = [
+          { f: 440, d: 0.14, t: 0.00 },
+          { f: 415.3, d: 0.14, t: 0.15 },
+          { f: 392.0, d: 0.14, t: 0.30 },
+          { f: 349.23, d: 0.38, t: 0.45 }
+        ];
+        melody.forEach(n => {
+          this.playTone(n.f, n.f * 0.96, n.d, 'sawtooth', 0.12, n.t);
+        });
+      }
+    }
+
+    const sfx = new RetroAudio();
+
+    // =========================================================================
+    // 2. CANVAS & GAME CONSTANTS (360x640 VERTICAL PORTRAIT CANVAS)
+    // =========================================================================
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    const WIDTH = 360;
+    const HEIGHT = 640;
+    const FLOOR_Y = 560;
+    const DEFAULT_GAME_LENGTH = 15000; // 15 seconds host session length
+
+    // 8-Bit NES/SNES Inspired Color Palette
+    const PALETTE = {
+      skyTop: '#161b33',
+      skyMid: '#242f54',
+      wallUpper: '#2b3a67',
+      wallLower: '#1e2749',
+      wallTrim: '#475b99',
+      windowGlass: '#3b82f6',
+      windowHighlight: '#93c5fd',
+      floorTop: '#c87d4b',
+      floorMid: '#a85f32',
+      floorDark: '#7a401e',
+      floorLine: '#f3d2b3',
+      slimeDark: '#15803d',
+      slimeMain: '#22c55e',
+      slimeLight: '#86efac',
+      slimeSpec: '#ffffff',
+      ballDark: '#9a3412',
+      ballMain: '#ea580c',
+      ballLight: '#fb923c',
+      ballSeam: '#29150c',
+      rimDark: '#991b1b',
+      rimMain: '#ef4444',
+      rimLight: '#fca5a5',
+      netColor: '#f1f5f9',
+      netShadow: '#94a3b8'
+    };
+
+    // =========================================================================
+    // 3. GAME STATE & ENTITIES
+    // =========================================================================
+    const STATE = {
+      PLAYING: 1,
+      GAMEOVER: 2
+    };
+
+    let gameState = STATE.PLAYING;
+    let score = 0;
+    let basketsMade = 0;
+    let combo = 0;
+    let timeElapsed = 0;
+    let gameDurationSec = DEFAULT_GAME_LENGTH / 1000;
+    let lastSecondInt = Math.ceil(gameDurationSec);
+    let frameCount = 0;
+    let screenShake = 0;
+    let gameParams = {};
+    let hasEnded = false;
+
+    // Slime Player Entity
+    const slime = {
+      x: 180,
+      y: FLOOR_Y,
+      vx: 0,
+      vy: 0,
+      baseRadius: 28,
+      scaleX: 1,
+      scaleY: 1,
+      grounded: true,
+      facing: 1,
+      blinkTimer: 0
+    };
+
+    // Basketball Entity
+    const ball = {
+      x: 180,
+      y: 180,
+      vx: 0,
+      vy: 0,
+      radius: 11,
+      rotation: 0,
+      vRot: 0,
+      active: true,
+      scoredThisShot: false,
+      touchedRim: false,
+      touchedBackboard: false,
+      trail: [],
+      serveTimer: 0,
+      serveTargetX: 180
+    };
+
+    // Basketball Hoop Entity (Mounted on the right wall facing left)
+    const hoop = {
+      x: 300,          // Rim center X
+      y: 280,          // Rim Y height
+      targetY: 280,
+      rimRadius: 24,
+      rimThickness: 4,
+      boardX: 334,     // Front face of backboard
+      boardWidth: 8,
+      boardTop: 220,
+      boardBottom: 310,
+      netSwish: 0,
+      netSway: 0
+    };
+
+    // Visual Effects Arrays
+    let particles = [];
+    let floatingTexts = [];
+
+    // =========================================================================
+    // 4. PARTICLE & FLOATING TEXT HELPERS
+    // =========================================================================
+    function spawnParticles(x, y, color, count = 8, speed = 2.5, gravity = 0.12) {
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6;
+        const spd = speed * (0.5 + Math.random() * 0.8);
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * spd,
+          vy: Math.sin(angle) * spd - 0.5,
+          life: 18 + Math.floor(Math.random() * 14),
+          maxLife: 32,
+          color,
+          size: Math.random() > 0.4 ? 2 : 3,
+          gravity
+        });
+      }
+    }
+
+    function spawnFloatingText(x, y, text, color = '#fde047') {
+      floatingTexts.push({
+        x,
+        y,
+        vy: -0.85,
+        text,
+        color,
+        life: 48
+      });
+    }
+
+    // =========================================================================
+    // 5. GAME FLOW & RESET LOGIC
+    // =========================================================================
+    function scheduleServe(xPos = 180, immediate = false) {
+      ball.active = false;
+      ball.serveTimer = immediate ? 15 : 30;
+      ball.serveTargetX = Math.max(70, Math.min(240, xPos));
+      ball.x = ball.serveTargetX;
+      ball.y = 120;
+      ball.vx = 0;
+      ball.vy = 0;
+      ball.trail = [];
+    }
+
+    function releaseBall() {
+      ball.active = true;
+      ball.x = ball.serveTargetX;
+      ball.y = 124;
+      ball.vx = (Math.random() - 0.5) * 0.4;
+      ball.vy = 0.3;
+      ball.vRot = (Math.random() - 0.5) * 0.04;
+      ball.scoredThisShot = false;
+      ball.touchedRim = false;
+      ball.touchedBackboard = false;
+      sfx.serve();
+      spawnParticles(ball.x, ball.y, '#93c5fd', 6, 1.5, 0);
+    }
+
+    // =========================================================================
+    // 6. REQUIRED HOST API FUNCTIONS
+    // =========================================================================
+    window.GameMeta = {
+      title: 'Slimeball 8-Bit Arcade',
+      gameLength: DEFAULT_GAME_LENGTH
+    };
+
+    function initGame(params) {
+      gameParams = params || {};
+      score = 0;
+      basketsMade = 0;
+      combo = 0;
+      timeElapsed = 0;
+      hasEnded = false;
+      gameState = STATE.PLAYING;
+      particles = [];
+      floatingTexts = [];
+
+      slime.x = 180;
+      slime.y = FLOOR_Y;
+      slime.vx = 0;
+      slime.vy = 0;
+      slime.grounded = true;
+
+      hoop.y = 280;
+      hoop.targetY = 280;
+      hoop.netSwish = 0;
+
+      scheduleServe(180, true);
+    }
+
+    function updateGame(dt) {
+      if (gameState !== STATE.PLAYING) return;
+
+      frameCount++;
+      timeElapsed += dt;
+
+      if (timeElapsed >= gameDurationSec) {
+        timeElapsed = gameDurationSec;
+        gameState = STATE.GAMEOVER;
+        if (!hasEnded) {
+          hasEnded = true;
+          sfx.gameOver();
+          if (window.Platform && typeof window.Platform.endGame === 'function') {
+            window.Platform.endGame();
+          }
+        }
+        return;
+      }
+
+      const remainingSec = Math.ceil(gameDurationSec - timeElapsed);
+      if (remainingSec < lastSecondInt && remainingSec > 0) {
+        lastSecondInt = remainingSec;
+        if (remainingSec <= 5) {
+          sfx.tick(true);
+        } else if (remainingSec <= 10) {
+          sfx.tick(false);
+        }
+      }
+
+      if (screenShake > 0) screenShake--;
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += p.gravity;
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y += ft.vy;
+        ft.life--;
+        if (ft.life <= 0) floatingTexts.splice(i, 1);
+      }
+
+      hoop.y += (hoop.targetY - hoop.y) * 0.08;
+      hoop.boardTop = Math.round(hoop.y - 45);
+      hoop.boardBottom = Math.round(hoop.y + 15);
+
+      if (hoop.netSwish > 0) hoop.netSwish--;
+
+      slime.vy += 0.35;
+      slime.x += slime.vx;
+      slime.y += slime.vy;
+
+      const minSlimeX = slime.baseRadius + 12;
+      const maxSlimeX = hoop.x - hoop.rimRadius - 16;
+      if (slime.x < minSlimeX) {
+        slime.x = minSlimeX;
+        slime.vx = 0;
+      } else if (slime.x > maxSlimeX) {
+        slime.x = maxSlimeX;
+        slime.vx = 0;
+      }
+
+      if (slime.y >= FLOOR_Y) {
+        if (!slime.grounded && slime.vy > 1.5) {
+          slime.scaleX = 1.3;
+          slime.scaleY = 0.7;
+        }
+        slime.y = FLOOR_Y;
+        slime.vy = 0;
+        slime.grounded = true;
+      }
+
+      slime.scaleX += (1 - slime.scaleX) * 0.18;
+      slime.scaleY += (1 - slime.scaleY) * 0.18;
+
+      if (slime.blinkTimer > 0) {
+        slime.blinkTimer--;
+      } else if (Math.random() < 0.006) {
+        slime.blinkTimer = 7;
+      }
+
+      if (!ball.active) {
+        ball.serveTimer--;
+        if (ball.serveTimer <= 0) {
+          releaseBall();
+        }
+        return;
+      }
+
+      const prevBallY = ball.y;
+
+      if (frameCount % 2 === 0) {
+        ball.trail.push({ x: ball.x, y: ball.y });
+        if (ball.trail.length > 5) ball.trail.shift();
+      }
+
+      ball.vy += 0.16;
+      ball.vx *= 0.998;
+      ball.vy *= 0.998;
+
+      const maxBallSpeed = 9.5;
+      const currentSpeed = Math.hypot(ball.vx, ball.vy);
+      if (currentSpeed > maxBallSpeed) {
+        ball.vx = (ball.vx / currentSpeed) * maxBallSpeed;
+        ball.vy = (ball.vy / currentSpeed) * maxBallSpeed;
+      }
+
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+      ball.rotation += ball.vRot;
+
+      const domeRadius = (slime.baseRadius + 3) * ((slime.scaleX + slime.scaleY) * 0.5);
+      const domeCenterX = slime.x;
+      const domeCenterY = slime.y - domeRadius * 0.55;
+
+      const dx = ball.x - domeCenterX;
+      const dy = ball.y - domeCenterY;
+      const dist = Math.hypot(dx, dy);
+      const minDist = domeRadius + ball.radius;
+
+      if (dist < minDist && dist > 0.001 && ball.y <= slime.y + 4) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        const overlap = minDist - dist;
+        ball.x += nx * overlap;
+        ball.y += ny * overlap;
+
+        const relVx = ball.vx - slime.vx;
+        const relVy = ball.vy - slime.vy;
+        const dot = relVx * nx + relVy * ny;
+
+        if (dot < 0) {
+          const restitution = 0.88;
+          ball.vx = relVx - (1 + restitution) * dot * nx + slime.vx * 0.6;
+          ball.vy = relVy - (1 + restitution) * dot * ny + slime.vy * 0.55;
+
+          if (ny < -0.1 && ball.vy > -4.0) {
+            ball.vy = -4.0 - Math.abs(slime.vy) * 0.4;
+          }
+
+          if (nx > -0.2 && nx < 0.9) {
+            const distToHoopX = hoop.x - ball.x;
+            const idealVx = Math.max(1.8, Math.min(3.8, distToHoopX * 0.018));
+            ball.vx = ball.vx * 0.5 + idealVx * 0.5;
+          }
+
+          ball.vRot = ball.vx * 0.05;
+          slime.scaleX = 1.32;
+          slime.scaleY = 0.68;
+
+          sfx.slimeBounce(Math.abs(dot));
+          spawnParticles(ball.x - nx * ball.radius, ball.y - ny * ball.radius, '#86efac', 7, 1.8, 0.08);
+        }
+      }
+
+      const bbLeft = hoop.boardX;
+      const bbRight = hoop.boardX + hoop.boardWidth;
+      const bbTop = hoop.boardTop;
+      const bbBottom = hoop.boardBottom;
+
+      const closestX = Math.max(bbLeft, Math.min(ball.x, bbRight));
+      const closestY = Math.max(bbTop, Math.min(ball.y, bbBottom));
+      const bDx = ball.x - closestX;
+      const bDy = ball.y - closestY;
+      const bDist = Math.hypot(bDx, bDy);
+
+      if (bDist < ball.radius) {
+        if (bDist > 0.0001) {
+          const bnx = bDx / bDist;
+          const bny = bDy / bDist;
+          ball.x += bnx * (ball.radius - bDist);
+          ball.y += bny * (ball.radius - bDist);
+
+          const vn = ball.vx * bnx + ball.vy * bny;
+          if (vn < 0) {
+            ball.vx -= (1 + 0.82) * vn * bnx;
+            ball.vy -= (1 + 0.82) * vn * bny;
+            ball.touchedBackboard = true;
+            sfx.backboardHit();
+            spawnParticles(closestX, closestY, '#ffffff', 5, 1.2, 0.06);
+          }
+        } else {
+          ball.x = bbLeft - ball.radius;
+          ball.vx = -Math.abs(ball.vx) * 0.82;
+          ball.touchedBackboard = true;
+          sfx.backboardHit();
+        }
+      }
+
+      const leftRimX = hoop.x - hoop.rimRadius;
+      const rightRimX = hoop.x + hoop.rimRadius;
+      const rimY = hoop.y;
+
+      function resolveCircleCollision(cx, cy, cr, restitution = 0.85) {
+        const rdx = ball.x - cx;
+        const rdy = ball.y - cy;
+        const rdist = Math.hypot(rdx, rdy);
+        const minRDist = ball.radius + cr;
+
+        if (rdist < minRDist && rdist > 0.0001) {
+          const rnx = rdx / rdist;
+          const rny = rdy / rdist;
+          const roverlap = minRDist - rdist;
+          ball.x += rnx * roverlap;
+          ball.y += rny * roverlap;
+
+          const rvn = ball.vx * rnx + ball.vy * rny;
+          if (rvn < 0) {
+            ball.vx -= (1 + restitution) * rvn * rnx;
+            ball.vy -= (1 + restitution) * rvn * rny;
+            ball.vRot = ball.vx * 0.05;
+            ball.touchedRim = true;
+            sfx.rimHit();
+            spawnParticles(cx, cy, '#fca5a5', 5, 1.4, 0.08);
+            return true;
+          }
+        }
+        return false;
+      }
+
+      resolveCircleCollision(leftRimX, rimY, 2.5, 0.82);
+      resolveCircleCollision(rightRimX, rimY, 2.5, 0.82);
+
+      if (
+        !ball.scoredThisShot &&
+        ball.vy > 0 &&
+        prevBallY <= rimY &&
+        ball.y >= rimY &&
+        ball.x > leftRimX + 3 &&
+        ball.x < rightRimX - 3
+      ) {
+        ball.scoredThisShot = true;
+        basketsMade++;
+        combo++;
+
+        const isSwish = !ball.touchedRim && !ball.touchedBackboard;
+        const isBank = !ball.touchedRim && ball.touchedBackboard;
+        let pts = (isSwish || isBank) ? 3 : 2;
+        if (combo > 1) pts += Math.min(3, combo - 1);
+
+        score += pts;
+        hoop.netSwish = 22;
+        hoop.netSway = ball.vx * 1.4;
+        ball.vx *= 0.45;
+        ball.vy *= 0.75;
+
+        sfx.score(isSwish, combo);
+        screenShake = isSwish ? 5 : 3;
+
+        const label = isSwish ? `SWISH! +${pts}` : isBank ? `BANK! +${pts}` : `+${pts}`;
+        const labelColor = isSwish ? '#fde047' : isBank ? '#38bdf8' : '#4ade80';
+        spawnFloatingText(hoop.x - 10, hoop.y - 14, label, labelColor);
+        spawnParticles(hoop.x, hoop.y + 6, labelColor, 14, 2.5, 0.08);
+
+        if (basketsMade % 3 === 0) {
+          const heights = [230, 270, 310, 250];
+          hoop.targetY = heights[(basketsMade / 3) % heights.length];
+        }
+      }
+
+      if (ball.x - ball.radius < 10) {
+        ball.x = 10 + ball.radius;
+        ball.vx = Math.abs(ball.vx) * 0.92;
+        sfx.floorBounce(Math.abs(ball.vx));
+      }
+      if (ball.x + ball.radius > WIDTH - 10) {
+        ball.x = WIDTH - 10 - ball.radius;
+        ball.vx = -Math.abs(ball.vx) * 0.92;
+        sfx.floorBounce(Math.abs(ball.vx));
+      }
+
+      if (ball.y < -50) {
+        ball.y = -50;
+        ball.vy = Math.abs(ball.vy) * 0.65;
+      }
+
+      if (ball.y + ball.radius >= FLOOR_Y) {
+        ball.y = FLOOR_Y - ball.radius;
+        if (ball.scoredThisShot) {
+          sfx.floorBounce(Math.abs(ball.vy));
+          spawnParticles(ball.x, FLOOR_Y, '#f3d2b3', 5, 1.2, 0.08);
+          scheduleServe(110 + Math.random() * 80, false);
+          return;
+        }
+
+        if (Math.abs(ball.vy) > 0.9) {
+          sfx.floorBounce(Math.abs(ball.vy));
+          spawnParticles(ball.x, FLOOR_Y, '#f3d2b3', 4, 1.0, 0.08);
+        }
+
+        ball.vy = -Math.max(3.2, Math.abs(ball.vy) * 0.90);
+        ball.vx *= 0.94;
+        ball.vRot = ball.vx * 0.04;
+
+        if (ball.x > 270) {
+          if (combo > 0 && !ball.scoredThisShot) combo = 0;
+          scheduleServe(130 + Math.random() * 70, false);
+        }
+      }
+    }
+
+    function handleInput(event) {
+      if (!event) return;
+      sfx.init();
+
+      const nx = event.x !== undefined ? event.x : 0.5;
+
+      if (event.type === 'DIRECTIONAL_VECTOR') {
+        const dx = event.x;
+        if (Math.abs(dx) > 0.15) {
+          slime.vx = dx * 5.2;
+          slime.facing = dx >= 0 ? 1 : -1;
+        } else {
+          slime.vx = 0;
+        }
+        if (event.y < -0.3 && slime.grounded) {
+          slime.vy = -7.2;
+          slime.grounded = false;
+          slime.scaleX = 0.72;
+          slime.scaleY = 1.32;
+          sfx.jump();
+          spawnParticles(slime.x, FLOOR_Y, '#86efac', 5, 1.3, 0.05);
+        }
+      } else if (event.type === 'ACTION_PRIMARY' || event.type === 'ACTION_SECONDARY') {
+        if (slime.grounded) {
+          slime.vy = -7.2;
+          slime.grounded = false;
+          slime.scaleX = 0.72;
+          slime.scaleY = 1.32;
+          sfx.jump();
+          spawnParticles(slime.x, FLOOR_Y, '#86efac', 5, 1.3, 0.05);
+        }
+        const targetWorldX = nx * WIDTH;
+        const diffX = targetWorldX - slime.x;
+        if (Math.abs(diffX) > 15) {
+          slime.vx = Math.sign(diffX) * 4.8;
+          slime.facing = Math.sign(diffX);
+        }
+      }
+    }
+
+    function drawBackground() {
+      ctx.fillStyle = PALETTE.wallUpper;
+      ctx.fillRect(0, 0, WIDTH, 360);
+
+      ctx.fillStyle = PALETTE.skyMid;
+      ctx.fillRect(0, 0, WIDTH, 75);
+
+      for (let wx = 35; wx <= 300; wx += 85) {
+        ctx.fillStyle = '#141b33';
+        ctx.fillRect(wx - 2, 95, 50, 45);
+        ctx.fillStyle = PALETTE.windowGlass;
+        ctx.fillRect(wx, 97, 46, 41);
+        ctx.fillStyle = PALETTE.windowHighlight;
+        ctx.fillRect(wx + 4, 102, 12, 4);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(wx + 22, 97, 3, 41);
+        ctx.fillRect(wx, 118, 46, 3);
+      }
+
+      ctx.fillStyle = PALETTE.wallTrim;
+      ctx.fillRect(0, 354, WIDTH, 6);
+      ctx.fillStyle = PALETTE.wallLower;
+      ctx.fillRect(0, 360, WIDTH, FLOOR_Y - 360);
+
+      ctx.fillStyle = '#171f3b';
+      for (let px = 20; px < WIDTH; px += 40) {
+        ctx.fillRect(px, 364, 2, FLOOR_Y - 364);
+      }
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(130, 160, 100, 36);
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(131, 161, 98, 34);
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('8-BIT', 180, 175);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillText('SLIMEBALL', 180, 188);
+
+      ctx.fillStyle = PALETTE.floorTop;
+      ctx.fillRect(0, FLOOR_Y, WIDTH, 10);
+      ctx.fillStyle = PALETTE.floorMid;
+      ctx.fillRect(0, FLOOR_Y + 10, WIDTH, 14);
+      ctx.fillStyle = PALETTE.floorDark;
+      ctx.fillRect(0, FLOOR_Y + 24, WIDTH, HEIGHT - (FLOOR_Y + 24));
+
+      ctx.fillStyle = PALETTE.floorLine;
+      ctx.fillRect(0, FLOOR_Y, WIDTH, 3);
+      ctx.fillStyle = '#8c4b23';
+      for (let fx = 0; fx < WIDTH; fx += 30) {
+        ctx.fillRect(fx, FLOOR_Y + 3, 2, 45);
+      }
+    }
+
+    function drawHoopBack() {
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(hoop.boardX + hoop.boardWidth, hoop.y - 35, WIDTH - hoop.boardX, 8);
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(hoop.boardX + hoop.boardWidth, hoop.y - 35, WIDTH - hoop.boardX, 2);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(hoop.boardX - 1, hoop.boardTop - 1, hoop.boardWidth + 2, hoop.boardBottom - hoop.boardTop + 2);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(hoop.boardX, hoop.boardTop, hoop.boardWidth, hoop.boardBottom - hoop.boardTop);
+
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(hoop.boardX, hoop.y - 20, 2, 20);
+
+      ctx.fillStyle = PALETTE.rimDark;
+      ctx.fillRect(hoop.x + hoop.rimRadius - 2, hoop.y - 1, 10, 5);
+    }
+
+    function drawHoopFrontAndNet() {
+      const leftX = hoop.x - hoop.rimRadius;
+      const rightX = hoop.x + hoop.rimRadius;
+      const topY = hoop.y + 2;
+
+      const swishProgress = hoop.netSwish > 0 ? Math.sin((hoop.netSwish / 22) * Math.PI) : 0;
+      const netHeight = 22 + swishProgress * 6;
+      const bottomSpread = 12 + swishProgress * 8;
+      const swayX = swishProgress * (hoop.netSway || 2);
+
+      const botLeftX = hoop.x - bottomSpread + swayX;
+      const botRightX = hoop.x + bottomSpread + swayX;
+      const botY = topY + netHeight;
+
+      ctx.strokeStyle = PALETTE.netShadow;
+      ctx.lineWidth = 1;
+      const strands = 6;
+      for (let i = 0; i <= strands; i++) {
+        const t = i / strands;
+        const tx = leftX + 2 + (rightX - leftX - 4) * t;
+        const bx = botLeftX + (botRightX - botLeftX) * t;
+        ctx.beginPath();
+        ctx.moveTo(Math.round(tx), Math.round(topY));
+        ctx.lineTo(Math.round(bx), Math.round(botY));
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = PALETTE.netColor;
+      for (let row = 1; row <= 3; row++) {
+        const rt = row / 3.5;
+        const yRow = topY + netHeight * rt;
+        const lRow = leftX + 2 + (botLeftX - (leftX + 2)) * rt;
+        const rRow = rightX - 2 + (botRightX - (rightX - 2)) * rt;
+        ctx.beginPath();
+        ctx.moveTo(Math.round(lRow), Math.round(yRow));
+        ctx.lineTo(Math.round(rRow), Math.round(yRow));
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = PALETTE.rimDark;
+      ctx.fillRect(leftX - 1, hoop.y - 1, hoop.rimRadius * 2 + 2, 5);
+      ctx.fillStyle = PALETTE.rimMain;
+      ctx.fillRect(leftX, hoop.y - 1, hoop.rimRadius * 2, 3);
+      ctx.fillStyle = PALETTE.rimLight;
+      ctx.fillRect(leftX + 2, hoop.y - 1, hoop.rimRadius * 2 - 4, 1);
+    }
+
+    function drawSlime() {
+      const rx = Math.round(slime.baseRadius * slime.scaleX);
+      const ry = Math.round(slime.baseRadius * slime.scaleY);
+      const cx = Math.round(slime.x);
+      const baseY = Math.round(slime.y);
+
+      const heightOffFloor = Math.max(0, FLOOR_Y - baseY);
+      const shadowScale = Math.max(0.4, 1 - heightOffFloor / 160);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+      ctx.fillRect(
+        Math.round(cx - rx * shadowScale),
+        FLOOR_Y - 1,
+        Math.round(rx * 2 * shadowScale),
+        3
+      );
+
+      for (let dy = 0; dy < ry; dy++) {
+        const normY = dy / ry;
+        const halfWidth = Math.round(rx * Math.sqrt(Math.max(0, 1 - Math.pow(normY, 2.15))));
+        if (halfWidth <= 0) continue;
+
+        const rowY = baseY - dy - 1;
+
+        ctx.fillStyle = '#052e16';
+        ctx.fillRect(cx - halfWidth - 1, rowY, halfWidth * 2 + 2, 1);
+
+        ctx.fillStyle = PALETTE.slimeMain;
+        ctx.fillRect(cx - halfWidth, rowY, halfWidth * 2, 1);
+
+        if (dy < 3) {
+          ctx.fillStyle = PALETTE.slimeDark;
+          ctx.fillRect(cx - halfWidth, rowY, halfWidth * 2, 1);
+        } else if (halfWidth > 5) {
+          ctx.fillStyle = PALETTE.slimeDark;
+          ctx.fillRect(cx + halfWidth - 3, rowY, 3, 1);
+        }
+
+        if (normY > 0.45 && halfWidth > 4) {
+          ctx.fillStyle = PALETTE.slimeLight;
+          ctx.fillRect(cx - halfWidth + 1, rowY, Math.min(5, halfWidth), 1);
+        }
+      }
+
+      ctx.fillStyle = '#052e16';
+      ctx.fillRect(cx - 3, baseY - ry - 1, 6, 1);
+
+      ctx.fillStyle = PALETTE.slimeSpec;
+      const specX = cx - Math.round(rx * 0.45);
+      const specY = baseY - Math.round(ry * 0.68);
+      ctx.fillRect(specX, specY, 3, 2);
+      ctx.fillRect(specX - 2, specY + 3, 2, 2);
+
+      const lookAngle = Math.atan2(ball.y - (baseY - ry * 0.45), ball.x - cx);
+      const pupilOffsetX = Math.round(Math.cos(lookAngle) * 1.5);
+      const pupilOffsetY = Math.round(Math.sin(lookAngle) * 1.2);
+      const eyeOffsetX = slime.facing * 5;
+      const eyeY = baseY - Math.round(ry * 0.44);
+
+      [-6, 6].forEach((offset) => {
+        const ex = cx + eyeOffsetX + offset;
+        if (slime.blinkTimer > 0) {
+          ctx.fillStyle = '#052e16';
+          ctx.fillRect(ex - 2, eyeY, 5, 1);
+        } else {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(ex - 2, eyeY - 2, 5, 5);
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(ex - 1 + pupilOffsetX, eyeY - 1 + pupilOffsetY, 3, 3);
+        }
+      });
+    }
+
+    function drawBall() {
+      if (!ball.active && gameState === STATE.PLAYING) {
+        const blink = Math.floor(frameCount / 4) % 2 === 0;
+        if (blink) {
+          const sx = Math.round(ball.serveTargetX);
+          ctx.fillStyle = '#fde047';
+          ctx.fillRect(sx - 1, 50, 2, 8);
+          ctx.fillRect(sx - 4, 58, 8, 1);
+          ctx.fillRect(sx - 2, 59, 4, 1);
+        }
+        return;
+      }
+
+      ball.trail.forEach((pt, idx) => {
+        const alpha = (idx + 1) / (ball.trail.length + 2) * 0.35;
+        ctx.fillStyle = `rgba(251, 146, 60, ${alpha})`;
+        const sz = idx + 3;
+        ctx.fillRect(Math.round(pt.x - sz / 2), Math.round(pt.y - sz / 2), sz, sz);
+      });
+
+      const bx = Math.round(ball.x);
+      const by = Math.round(ball.y);
+      const r = ball.radius;
+
+      const ballDistFloor = Math.max(0, FLOOR_Y - by);
+      const bShadowW = Math.max(6, Math.round((r * 1.6) * (1 - ballDistFloor / 250)));
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.38)';
+      ctx.fillRect(bx - Math.round(bShadowW / 2), FLOOR_Y - 1, bShadowW, 2);
+
+      for (let dy = -r; dy <= r; dy++) {
+        const hw = Math.round(Math.sqrt(r * r - dy * dy));
+        if (hw <= 0) continue;
+
+        ctx.fillStyle = PALETTE.ballSeam;
+        ctx.fillRect(bx - hw - 1, by + dy, hw * 2 + 2, 1);
+        ctx.fillStyle = PALETTE.ballMain;
+        ctx.fillRect(bx - hw, by + dy, hw * 2, 1);
+
+        if (dy > 2) {
+          ctx.fillStyle = PALETTE.ballDark;
+          ctx.fillRect(bx - hw + 1, by + dy, hw * 2 - 1, 1);
+        }
+      }
+
+      ctx.fillStyle = PALETTE.ballLight;
+      ctx.fillRect(bx - 4, by - 4, 3, 2);
+
+      ctx.fillStyle = PALETTE.ballSeam;
+      const seamShift = Math.round(Math.sin(ball.rotation) * 4);
+      const seamShiftY = Math.round(Math.cos(ball.rotation) * 4);
+      ctx.fillRect(bx + seamShift, by - r + 2, 1, r * 2 - 4);
+      ctx.fillRect(bx - r + 2, by + seamShiftY, r * 2 - 4, 1);
+    }
+
+    function drawParticlesAndText() {
+      particles.forEach((p) => {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
+      });
+
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      floatingTexts.forEach((ft) => {
+        const tx = Math.round(ft.x);
+        const ty = Math.round(ft.y);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(ft.text, tx + 1, ty + 1);
+        ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, tx, ty);
+      });
+    }
+
+    function drawHUD() {
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.fillRect(0, 0, WIDTH, 30);
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(0, 30, WIDTH, 2);
+
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.textBaseline = 'top';
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('SCORE', 12, 6);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillText(String(score).padStart(4, '0'), 12, 17);
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(combo > 1 ? `COMBO x${combo}` : `MADE:${basketsMade}`, 180, 12);
+
+      const remainingSec = Math.max(0, Math.ceil(gameDurationSec - timeElapsed));
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('TIME', WIDTH - 12, 6);
+      ctx.fillStyle = remainingSec <= 5 && frameCount % 16 < 8 ? '#ef4444' : '#f8fafc';
+      ctx.fillText(String(remainingSec).padStart(2, '0'), WIDTH - 12, 17);
+    }
+
+    function drawGameOverOverlay() {
+      ctx.fillStyle = 'rgba(10, 12, 24, 0.86)';
+      ctx.fillRect(30, 140, WIDTH - 60, 320);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(30, 140, WIDTH - 60, 320);
+
+      ctx.textAlign = 'center';
+      ctx.font = '16px "Press Start 2P", monospace';
+      ctx.fillStyle = '#ef4444';
+      ctx.fillText('TIME UP!', WIDTH / 2, 180);
+
+      ctx.font = '9px "Press Start 2P", monospace';
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText(`FINAL SCORE: ${score}`, WIDTH / 2, 230);
+
+      ctx.fillStyle = '#4ade80';
+      ctx.fillText(`BASKETS MADE: ${basketsMade}`, WIDTH / 2, 270);
+
+      ctx.fillStyle = '#fde047';
+      ctx.fillText(`COMBO MAX: ${combo}`, WIDTH / 2, 310);
+
+      if (Math.floor(frameCount / 22) % 2 === 0) {
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText('READY FOR RESULTS', WIDTH / 2, 390);
+      }
+    }
+
+    function renderAll(ctxTarget) {
+      if (!ctxTarget) return;
+
+      ctxTarget.save();
+      if (screenShake > 0) {
+        const sx = Math.round((Math.random() - 0.5) * screenShake);
+        const sy = Math.round((Math.random() - 0.5) * screenShake);
+        ctxTarget.translate(sx, sy);
+      }
+
+      drawBackground();
+      drawHoopBack();
+      drawSlime();
+      drawBall();
+      drawHoopFrontAndNet();
+      drawParticlesAndText();
+      drawHUD();
+
+      if (gameState === STATE.GAMEOVER) {
+        drawGameOverOverlay();
+      }
+
+      ctxTarget.restore();
+    }
+
+    function getResult() {
+      return {
+        score: score,
+        timeElapsed: Number(timeElapsed.toFixed(2)),
+        completionPercent: Math.min(100, Math.round((timeElapsed / gameDurationSec) * 100)),
+        customData: {
+          basketsMade: basketsMade,
+          maxCombo: combo
+        }
+      };
+    }
+
+    const btnCrt = document.getElementById('btn-crt');
+    const crtOverlay = document.getElementById('crt-overlay');
+    let crtEnabled = true;
+    if (btnCrt && crtOverlay) {
+      btnCrt.addEventListener('click', () => {
+        crtEnabled = !crtEnabled;
+        crtOverlay.classList.toggle('hidden', !crtEnabled);
+        btnCrt.textContent = crtEnabled ? 'CRT:ON' : 'CRT:OFF';
+        btnCrt.classList.toggle('active', crtEnabled);
+      });
+    }
+
+    const btnMute = document.getElementById('btn-mute');
+    if (btnMute) {
+      btnMute.addEventListener('click', () => {
+        sfx.muted = !sfx.muted;
+        btnMute.textContent = sfx.muted ? 'SFX:OFF' : 'SFX:ON';
+        btnMute.classList.toggle('active', !sfx.muted);
+        if (!sfx.muted) sfx.serve();
+      });
+    }
+
+    window.addEventListener('load', () => {
+      if (typeof initGame === 'function') {
+        initGame({ seed: 12345, hue: 120, theme: 'arcade' });
+      }
+    });
+  </script>
+</body>
+</html>
