@@ -57,6 +57,18 @@
       },
       "icon": "🎯",
       "description": "Tap the targets before they fade. Clear 12 pops in 15 seconds; hold for a bomb."
+    },
+    {
+      "id": "slimeball",
+      "file": "slimeball.html",
+      "title": "Slimeball 8-Bit Arcade",
+      "tags": {
+        "Sports": 1,
+        "Precision": 0.8,
+        "Arcade": 0.5
+      },
+      "icon": "\ud83c\udfc0",
+      "description": "8-bit arcade slime basketball game with precision physics and chiptune sound."
     }
   ]
 }
