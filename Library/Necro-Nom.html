@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Necro-Nom</title>
+    <!-- Load Tailwind CSS for responsive layout and UI overlays -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Fredoka & Space Mono fonts for a playful yet spooky arcade vibe -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-void: #0b0914;
+            --wall-fill: #1b1530;
+            --wall-glow: #7c3aed;
+            --soul-cyan: #22d3ee;
+            --soul-glow: rgba(34, 211, 238, 0.6);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-void);
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.16) 0%, transparent 60%),
+                radial-gradient(circle at 50% 100%, rgba(34, 211, 238, 0.08) 0%, transparent 60%);
+            font-family: 'Fredoka', sans-serif;
+            color: #f3f0ff;
+            touch-action: none; /* Prevent browser pull-to-refresh and scroll */
+        }
+
+        .font-mono-timer {
+            font-family: 'Space Mono', monospace;
+        }
+
+        /* Custom Arcade Bubble Buttons */
+        .btn-arcade {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+            border: 2px solid #c4b5fd;
+            box-shadow: 0 6px 0 #4c1d95, 0 10px 20px rgba(109, 40, 217, 0.45);
+            transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.15s ease;
+        }
+
+        .btn-arcade:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        .btn-arcade:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #4c1d95, 0 4px 10px rgba(109, 40, 217, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(30, 24, 54, 0.85);
+            border: 1.5px solid rgba(167, 139, 250, 0.35);
+            box-shadow: 0 3px 0 rgba(15, 11, 30, 0.9);
+            transition: all 0.12s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(46, 37, 82, 0.95);
+            border-color: rgba(196, 181, 253, 0.7);
+        }
+
+        .btn-secondary:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 rgba(15, 11, 30, 0.9);
+        }
+
+        /* Urgent timer pulse */
+        @keyframes urgentPulse {
+            0%, 100% { transform: scale(1); text-shadow: 0 0 12px rgba(244, 63, 94, 0.8); }
+            50% { transform: scale(1.1); text-shadow: 0 0 22px rgba(244, 63, 94, 1); }
+        }
+
+        .timer-urgent {
+            color: #fb7185 !important;
+            animation: urgentPulse 0.5s infinite ease-in-out;
+        }
+
+        /* Floating title animation */
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+
+        .animate-float {
+            animation: floatSlow 2.6s ease-in-out infinite;
+        }
+
+        canvas {
+            display: block;
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(124, 58, 237, 0.22), inset 0 0 20px rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(139, 92, 246, 0.4);
+            background-color: #0e0b1a;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between h-full w-full p-2 sm:p-4">
+
+    <!-- Top Minimalist HUD -->
+    <header class="w-full max-w-2xl flex items-center justify-between px-3 py-2 rounded-2xl bg-[#161129]/90 border border-purple-500/30 shadow-lg shrink-0 z-10">
+        <!-- Timer Display -->
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-xl bg-purple-950/80 border border-purple-500/30 flex items-center justify-center text-purple-300">
+                <!-- Clock Icon -->
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <polyline points="12 7 12 12 15 15"></polyline>
+                </svg>
+            </div>
+            <div>
+                <div class="text-[10px] uppercase tracking-wider text-purple-300/70 font-semibold leading-none">Time</div>
+                <div id="hud-timer" class="font-mono-timer text-lg sm:text-xl font-bold text-white leading-tight">30.0s</div>
+            </div>
+        </div>
+
+        <!-- Souls Collected Display -->
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-xl bg-cyan-950/70 border border-cyan-400/30 flex items-center justify-center">
+                <span class="w-3.5 h-3.5 rounded-full bg-cyan-300 shadow-[0_0_10px_#22d3ee]"></span>
+            </div>
+            <div>
+                <div class="text-[10px] uppercase tracking-wider text-cyan-300/70 font-semibold leading-none">Souls</div>
+                <div id="hud-souls" class="font-mono-timer text-lg sm:text-xl font-bold text-cyan-300 leading-tight">0/0</div>
+            </div>
+        </div>
+
+        <!-- Action Controls: Sound Toggle & Restart -->
+        <div class="flex items-center gap-1.5 sm:gap-2">
+            <button id="btn-mute" aria-label="Toggle Sound" class="btn-secondary p-2.5 rounded-xl text-purple-200 flex items-center justify-center cursor-pointer" title="Toggle Sound">
+                <svg id="icon-sound-on" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                </svg>
+                <svg id="icon-sound-off" class="w-5 h-5 hidden text-rose-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                </svg>
+            </button>
+            <button id="btn-restart-hud" aria-label="Restart Game" class="btn-secondary px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-purple-100 flex items-center gap-1.5 cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <path d="M3 3v5h5"></path>
+                </svg>
+                <span class="hidden sm:inline">Restart</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Canvas Container -->
+    <main id="canvas-wrapper" class="relative flex-1 w-full max-w-2xl flex items-center justify-center my-2 overflow-hidden">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Start Screen Overlay -->
+        <div id="overlay-start" class="absolute inset-0 flex items-center justify-center p-4 bg-[#0b0914]/80 backdrop-blur-sm rounded-2xl z-20">
+            <div class="bg-[#18122b] border-2 border-purple-500/40 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl">
+                <!-- Cute Reaper Emblem -->
+                <div class="mx-auto w-20 h-20 mb-3 rounded-2xl bg-purple-950/80 border border-purple-400/30 flex items-center justify-center animate-float shadow-[0_0_25px_rgba(139,92,246,0.35)]">
+                    <svg viewBox="0 0 64 64" class="w-14 h-14">
+                        <!-- Scythe -->
+                        <path d="M48 12 Q32 8 24 20 Q36 16 46 20 Z" fill="#cbd5e1"/>
+                        <line x1="47" y1="12" x2="47" y2="54" stroke="#92400e" stroke-width="3.5" stroke-linecap="round"/>
+                        <!-- Cloak -->
+                        <path d="M16 52 Q16 18 32 18 Q48 18 48 52 L42 48 L37 53 L32 48 L27 53 L22 48 Z" fill="#1e1b4b" stroke="#8b5cf6" stroke-width="2"/>
+                        <!-- Face Void -->
+                        <ellipse cx="32" cy="30" rx="9" ry="8" fill="#090714"/>
+                        <!-- Cute Glowing Eyes -->
+                        <circle cx="28.5" cy="30" r="2.2" fill="#22d3ee"/>
+                        <circle cx="35.5" cy="30" r="2.2" fill="#22d3ee"/>
+                    </svg>
+                </div>
+
+                <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-cyan-200 to-purple-300 mb-2">
+                    NECRO-NOM
+                </h1>
+                <p class="text-purple-200/90 text-sm sm:text-base mb-5 leading-snug">
+                    Harvest every wandering soul in the crypt before <span class="text-cyan-300 font-bold">30.0 seconds</span> run out!
+                </p>
+
+                <div class="flex items-center justify-center gap-4 text-xs text-purple-300/75 mb-6 bg-purple-950/50 py-2 px-3 rounded-xl border border-purple-500/20">
+                    <span>📱 Swipe anywhere</span>
+                    <span>•</span>
+                    <span>⌨️ WASD / Arrows</span>
+                </div>
+
+                <button id="btn-play" class="btn-arcade w-full py-3.5 px-6 rounded-2xl text-lg font-bold text-white tracking-wide cursor-pointer">
+                    PLAY NOW
+                </button>
+            </div>
+        </div>
+
+        <!-- Win Screen Overlay -->
+        <div id="overlay-win" class="hidden absolute inset-0 flex items-center justify-center p-4 bg-[#0b0914]/85 backdrop-blur-sm rounded-2xl z-20">
+            <div class="bg-[#18122b] border-2 border-cyan-400/50 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-[0_0_40px_rgba(34,211,238,0.25)]">
+                <div class="text-5xl mb-2 animate-float">👻✨</div>
+                <h2 class="text-3xl font-bold text-cyan-300 mb-1">CRYPT CLEARED!</h2>
+                <p class="text-purple-200/85 text-sm mb-5">All souls safely harvested!</p>
+
+                <div class="grid grid-cols-2 gap-3 mb-6 bg-[#100c1f] p-3.5 rounded-2xl border border-purple-500/25">
+                    <div>
+                        <div class="text-[11px] uppercase tracking-wider text-purple-300/70">Time Left</div>
+                        <div id="win-time-left" class="font-mono-timer text-xl font-bold text-cyan-300">12.4s</div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] uppercase tracking-wider text-purple-300/70">Clear Time</div>
+                        <div id="win-clear-time" class="font-mono-timer text-xl font-bold text-purple-200">17.6s</div>
+                    </div>
+                </div>
+
+                <button id="btn-play-again" class="btn-arcade w-full py-3.5 px-6 rounded-2xl text-lg font-bold text-white tracking-wide cursor-pointer">
+                    PLAY AGAIN
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Over / Time's Up Screen Overlay -->
+        <div id="overlay-lose" class="hidden absolute inset-0 flex items-center justify-center p-4 bg-[#0b0914]/85 backdrop-blur-sm rounded-2xl z-20">
+            <div class="bg-[#18122b] border-2 border-rose-500/50 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-[0_0_40px_rgba(244,63,94,0.25)]">
+                <div class="text-5xl mb-2">⏳💀</div>
+                <h2 class="text-3xl font-bold text-rose-400 mb-1">TIME'S UP!</h2>
+                <p class="text-purple-200/85 text-sm mb-5">The remaining souls slipped away...</p>
+
+                <div class="mb-6 bg-[#100c1f] p-3.5 rounded-2xl border border-rose-500/25">
+                    <div class="text-[11px] uppercase tracking-wider text-purple-300/70">Souls Harvested</div>
+                    <div id="lose-souls-count" class="font-mono-timer text-2xl font-bold text-cyan-300">42 / 68</div>
+                </div>
+
+                <button id="btn-try-again" class="btn-arcade w-full py-3.5 px-6 rounded-2xl text-lg font-bold text-white tracking-wide cursor-pointer">
+                    TRY AGAIN
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Subtle Bottom Footer Hint -->
+    <footer class="text-center text-xs text-purple-300/60 pb-1 shrink-0">
+        Swipe or use Arrow Keys / WASD to steer the Grim Reaper
+    </footer>
+
+    <script>
+        /**
+         * NECRO-NOM
+         * A fast-paced, spooky-cute arcade maze game.
+         * Collect all floating souls within 30.0 seconds!
+         */
+
+        // ==========================================
+        // 1. WEB AUDIO SYNTHESIZER (Retro Arcade SFX)
+        // ==========================================
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+                this.noteIndex = 0;
+                // Pentatonic spooky-cute scale frequencies for soul collection streak
+                this.soulNotes = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50];
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            toggleMute() {
+                this.muted = !this.muted;
+                return this.muted;
+            }
+
+            playSoulCollect() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                // Cycle ascending harmonic pitches
+                const freq = this.soulNotes[this.noteIndex % this.soulNotes.length];
+                this.noteIndex++;
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now);
+                osc.frequency.exponentialRampToValueAtTime(freq * 1.35, now + 0.09);
+
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.11);
+            }
+
+            playTurn() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.045);
+
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.055);
+            }
+
+            playWin() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+                notes.forEach((freq, idx) => {
+                    const start = this.ctx.currentTime + idx * 0.08;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, start);
+
+                    gain.gain.setValueAtTime(0.16, start);
+                    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.25);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start(start);
+                    osc.stop(start + 0.26);
+                });
+            }
+
+            playLose() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const notes = [349.23, 329.63, 293.66, 220.00];
+                notes.forEach((freq, idx) => {
+                    const start = this.ctx.currentTime + idx * 0.13;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq, start);
+
+                    gain.gain.setValueAtTime(0.1, start);
+                    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start(start);
+                    osc.stop(start + 0.24);
+                });
+            }
+        }
+
+        const sfx = new SoundEngine();
+
+        // ==========================================
+        // 2. MAZE BLUEPRINT & GAME CONSTANTS
+        // ==========================================
+        // 15 cols x 15 rows: Clean, symmetrical, interconnected crypt layout
+        // Legend: '#' = Wall, '.' = Soul, 'P' = Reaper Start
+        // No dead-ends! Every corridor loops smoothly so a <30s run is thrilling & fair.
+        const MAZE_BLUEPRINT = [
+            "###############",
+            "#......#......#",
+            "#.####.#.####.#",
+            "#.#.........#.#",
+            "#.#.###.###.#.#",
+            "#...#.....#...#",
+            "###.#.###.#.###",
+            "#......P......#",
+            "###.#.###.#.###",
+            "#...#.....#...#",
+            "#.#.###.###.#.#",
+            "#.#.........#.#",
+            "#.####.#.####.#",
+            "#......#......#",
+            "###############"
+        ];
+
+        const ROWS = MAZE_BLUEPRINT.length;
+        const COLS = MAZE_BLUEPRINT[0].length;
+        const GAME_DURATION = 30.0; // seconds
+        const REAPER_SPEED = 6.2;   // tiles per second (allows full clear in ~14-18s with good routing)
+
+        // Direction vectors
+        const DIRS = {
+            NONE:  { x: 0,  y: 0,  name: 'NONE' },
+            UP:    { x: 0,  y: -1, name: 'UP' },
+            DOWN:  { x: 0,  y: 1,  name: 'DOWN' },
+            LEFT:  { x: -1, y: 0,  name: 'LEFT' },
+            RIGHT: { x: 1,  y: 0,  name: 'RIGHT' }
+        };
+
+        // ==========================================
+        // 3. GAME STATE & DOM REFERENCES
+        // ==========================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+
+        const hudTimer = document.getElementById('hud-timer');
+        const hudSouls = document.getElementById('hud-souls');
+        const overlayStart = document.getElementById('overlay-start');
+        const overlayWin = document.getElementById('overlay-win');
+        const overlayLose = document.getElementById('overlay-lose');
+
+        const winTimeLeftEl = document.getElementById('win-time-left');
+        const winClearTimeEl = document.getElementById('win-clear-time');
+        const loseSoulsCountEl = document.getElementById('lose-souls-count');
+
+        let gameState = 'START'; // 'START', 'PLAYING', 'WIN', 'LOSE'
+        let grid = [];
+        let souls = [];
+        let particles = [];
+        let totalSouls = 0;
+        let collectedSouls = 0;
+        let timeRemaining = GAME_DURATION;
+        let lastTimestamp = 0;
+        let tileSize = 32;
+        let animTime = 0;
+
+        // Player entity (coordinates in tile space where integer (c, r) is the center of tile [r][c])
+        const player = {
+            x: 7,
+            y: 7,
+            dir: DIRS.NONE,
+            nextDir: DIRS.NONE,
+            facing: 1, // 1 for right, -1 for left
+            bobPhase: 0,
+            chompTimer: 0
+        };
+
+        // ==========================================
+        // 4. INITIALIZATION & LEVEL RESET
+        // ==========================================
+        function resetGame() {
+            grid = [];
+            souls = [];
+            particles = [];
+            totalSouls = 0;
+            collectedSouls = 0;
+            timeRemaining = GAME_DURATION;
+            sfx.noteIndex = 0;
+
+            for (let r = 0; r < ROWS; r++) {
+                const rowArr = [];
+                for (let c = 0; c < COLS; c++) {
+                    const ch = MAZE_BLUEPRINT[r][c];
+                    if (ch === '#') {
+                        rowArr.push(1); // Wall
+                    } else {
+                        rowArr.push(0); // Walkable floor
+                        if (ch === 'P') {
+                            player.x = c;
+                            player.y = r;
+                            player.dir = DIRS.NONE;
+                            player.nextDir = DIRS.NONE;
+                            player.facing = 1;
+                        } else if (ch === '.') {
+                            souls.push({
+                                c: c,
+                                r: r,
+                                collected: false,
+                                phase: (c * 0.7 + r * 1.1) // Staggered floating wave
+                            });
+                            totalSouls++;
+                        }
+                    }
+                }
+                grid.push(rowArr);
+            }
+
+            updateHUD();
+        }
+
+        function startGame() {
+            sfx.init();
+            resetGame();
+            gameState = 'PLAYING';
+            overlayStart.classList.add('hidden');
+            overlayWin.classList.add('hidden');
+            overlayLose.classList.add('hidden');
+            hudTimer.classList.remove('timer-urgent');
+        }
+
+        function triggerWin() {
+            gameState = 'WIN';
+            sfx.playWin();
+            const clearTime = Math.max(0, GAME_DURATION - timeRemaining);
+            winTimeLeftEl.textContent = `${timeRemaining.toFixed(1)}s`;
+            winClearTimeEl.textContent = `${clearTime.toFixed(1)}s`;
+            overlayWin.classList.remove('hidden');
+        }
+
+        function triggerLose() {
+            gameState = 'LOSE';
+            timeRemaining = 0;
+            updateHUD();
+            sfx.playLose();
+            loseSoulsCountEl.textContent = `${collectedSouls} / ${totalSouls}`;
+            overlayLose.classList.remove('hidden');
+        }
+
+        function updateHUD() {
+            hudTimer.textContent = `${Math.max(0, timeRemaining).toFixed(1)}s`;
+            hudSouls.textContent = `${collectedSouls}/${totalSouls}`;
+
+            if (gameState === 'PLAYING' && timeRemaining <= 5.0) {
+                hudTimer.classList.add('timer-urgent');
+            } else {
+                hudTimer.classList.remove('timer-urgent');
+            }
+        }
+
+        // ==========================================
+        // 5. RESPONSIVE CANVAS SIZING
+        // ==========================================
+        function resizeCanvas() {
+            const rect = canvasWrapper.getBoundingClientRect();
+            const availW = rect.width - 8;
+            const availH = rect.height - 8;
+
+            // Compute largest integer tile size that fits cleanly inside wrapper
+            tileSize = Math.floor(Math.min(availW / COLS, availH / ROWS));
+            tileSize = Math.max(16, tileSize);
+
+            const dpr = window.devicePixelRatio || 1;
+            const logicalW = tileSize * COLS;
+            const logicalH = tileSize * ROWS;
+
+            canvas.style.width = `${logicalW}px`;
+            canvas.style.height = `${logicalH}px`;
+            canvas.width = logicalW * dpr;
+            canvas.height = logicalH * dpr;
+
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // ==========================================
+        // 6. INPUT HANDLING (Touch Swipes & Keyboard)
+        // ==========================================
+        function queueDirection(newDir) {
+            if (gameState !== 'PLAYING') return;
+            if (player.nextDir !== newDir) {
+                player.nextDir = newDir;
+            }
+        }
+
+        // Keyboard (Arrows + WASD)
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)) {
+                e.preventDefault();
+            }
+
+            if (gameState === 'START' && (key === 'enter' || key === ' ')) {
+                startGame();
+                return;
+            }
+
+            if (key === 'arrowup' || key === 'w') queueDirection(DIRS.UP);
+            else if (key === 'arrowdown' || key === 's') queueDirection(DIRS.DOWN);
+            else if (key === 'arrowleft' || key === 'a') queueDirection(DIRS.LEFT);
+            else if (key === 'arrowright' || key === 'd') queueDirection(DIRS.RIGHT);
+        });
+
+        // Touch Swipe Gestures
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchActive = false;
+        const SWIPE_THRESHOLD = 22; // px threshold for responsive mobile swipes
+
+        document.addEventListener('touchstart', (e) => {
+            // Allow button clicks on overlays/HUD without swallowing tap events
+            if (e.target.closest('button')) return;
+            if (e.touches.length > 0) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                touchActive = true;
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (gameState === 'PLAYING') {
+                e.preventDefault(); // Prevent page scroll / pull-to-refresh
+            }
+            if (!touchActive || e.touches.length === 0) return;
+
+            const dx = e.touches[0].clientX - touchStartX;
+            const dy = e.touches[0].clientY - touchStartY;
+
+            if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    queueDirection(dx > 0 ? DIRS.RIGHT : DIRS.LEFT);
+                } else {
+                    queueDirection(dy > 0 ? DIRS.DOWN : DIRS.UP);
+                }
+                // Reset anchor so continuous drag-swiping without lifting finger works smoothly!
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', () => {
+            touchActive = false;
+        });
+
+        // UI Button Listeners
+        document.getElementById('btn-play').addEventListener('click', startGame);
+        document.getElementById('btn-play-again').addEventListener('click', startGame);
+        document.getElementById('btn-try-again').addEventListener('click', startGame);
+        document.getElementById('btn-restart-hud').addEventListener('click', () => {
+            if (gameState === 'START') {
+                startGame();
+            } else {
+                startGame();
+            }
+        });
+
+        const btnMute = document.getElementById('btn-mute');
+        const iconSoundOn = document.getElementById('icon-sound-on');
+        const iconSoundOff = document.getElementById('icon-sound-off');
+
+        btnMute.addEventListener('click', () => {
+            const isMuted = sfx.toggleMute();
+            iconSoundOn.classList.toggle('hidden', isMuted);
+            iconSoundOff.classList.toggle('hidden', !isMuted);
+        });
+
+        // ==========================================
+        // 7. GRID MOVEMENT & COLLISION LOGIC
+        // ==========================================
+        function isWall(c, r) {
+            if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return true;
+            return grid[r][c] === 1;
+        }
+
+        function updatePlayer(dt) {
+            const step = REAPER_SPEED * dt;
+            const centerC = Math.round(player.x);
+            const centerR = Math.round(player.y);
+            const distToCenter = Math.hypot(player.x - centerC, player.y - centerR);
+
+            // 1. Handle instant reversal (e.g., LEFT -> RIGHT) anytime
+            if (player.nextDir !== DIRS.NONE && player.dir !== DIRS.NONE) {
+                if (player.nextDir.x === -player.dir.x && player.nextDir.y === -player.dir.y) {
+                    player.dir = player.nextDir;
+                    player.nextDir = DIRS.NONE;
+                    if (player.dir.x !== 0) player.facing = player.dir.x;
+                    sfx.playTurn();
+                }
+            }
+
+            // 2. Corner-turning tolerance: snap to tile center when close enough to turn
+            const TURN_TOLERANCE = 0.28;
+            if (player.nextDir !== DIRS.NONE && distToCenter <= TURN_TOLERANCE) {
+                const targetC = centerC + player.nextDir.x;
+                const targetR = centerR + player.nextDir.y;
+
+                if (!isWall(targetC, targetR)) {
+                    player.x = centerC;
+                    player.y = centerR;
+                    if (player.dir !== player.nextDir) {
+                        sfx.playTurn();
+                    }
+                    player.dir = player.nextDir;
+                    player.nextDir = DIRS.NONE;
+                    if (player.dir.x !== 0) player.facing = player.dir.x;
+                }
+            }
+
+            // 3. Move along current direction
+            if (player.dir !== DIRS.NONE) {
+                const nextX = player.x + player.dir.x * step;
+                const nextY = player.y + player.dir.y * step;
+
+                const aheadC = centerC + player.dir.x;
+                const aheadR = centerR + player.dir.y;
+
+                if (isWall(aheadC, aheadR)) {
+                    // Clamp smoothly at center of current tile before hitting wall
+                    if (player.dir.x > 0 && nextX > centerC) player.x = centerC;
+                    else if (player.dir.x < 0 && nextX < centerC) player.x = centerC;
+                    else player.x = nextX;
+
+                    if (player.dir.y > 0 && nextY > centerR) player.y = centerR;
+                    else if (player.dir.y < 0 && nextY < centerR) player.y = centerR;
+                    else player.y = nextY;
+                } else {
+                    player.x = nextX;
+                    player.y = nextY;
+                }
+
+                // Animate cloak bobbing while moving
+                player.bobPhase += dt * 16;
+            } else {
+                player.bobPhase += dt * 4;
+            }
+
+            if (player.chompTimer > 0) {
+                player.chompTimer = Math.max(0, player.chompTimer - dt * 6);
+            }
+
+            // 4. Check Soul Collection
+            for (let i = 0; i < souls.length; i++) {
+                const s = souls[i];
+                if (!s.collected) {
+                    const dist = Math.hypot(player.x - s.c, player.y - s.r);
+                    if (dist < 0.48) {
+                        s.collected = true;
+                        collectedSouls++;
+                        player.chompTimer = 1.0;
+                        sfx.playSoulCollect();
+                        spawnSoulParticles(s.c, s.r);
+                        updateHUD();
+
+                        if (collectedSouls >= totalSouls) {
+                            triggerWin();
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 8. PARTICLE EFFECTS
+        // ==========================================
+        function spawnSoulParticles(tileC, tileR) {
+            const px = (tileC + 0.5) * tileSize;
+            const py = (tileR + 0.5) * tileSize;
+
+            for (let i = 0; i < 10; i++) {
+                const angle = (Math.PI * 2 * i) / 10 + (Math.random() - 0.5) * 0.4;
+                const speed = (1.2 + Math.random() * 2.2) * (tileSize / 32);
+                particles.push({
+                    x: px,
+                    y: py,
+                    vx: Math.cos(angle) * speed * 45,
+                    vy: Math.sin(angle) * speed * 45,
+                    life: 1.0,
+                    size: (2 + Math.random() * 2.5) * (tileSize / 32),
+                    color: i % 2 === 0 ? '#22d3ee' : '#c084fc'
+                });
+            }
+        }
+
+        function updateParticles(dt) {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.life -= dt * 2.8;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        // ==========================================
+        // 9. CANVAS RENDERING
+        // ==========================================
+        function drawMaze() {
+            const w = COLS * tileSize;
+            const h = ROWS * tileSize;
+
+            // Dark void floor background
+            ctx.fillStyle = '#0d0a1a';
+            ctx.fillRect(0, 0, w, h);
+
+            // Subtle cobblestone / crypt tile grid lines
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.06)';
+            ctx.lineWidth = 1;
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (grid[r][c] === 0) {
+                        ctx.strokeRect(c * tileSize + 1, r * tileSize + 1, tileSize - 2, tileSize - 2);
+                    }
+                }
+            }
+
+            // Render Spooky Crypt Walls with rounded corners & glowing edges
+            const pad = Math.max(1.5, tileSize * 0.06);
+            const radius = Math.max(4, tileSize * 0.22);
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (grid[r][c] === 1) {
+                        const x = c * tileSize + pad;
+                        const y = r * tileSize + pad;
+                        const size = tileSize - pad * 2;
+
+                        // Wall body gradient
+                        ctx.fillStyle = '#1c1536';
+                        ctx.beginPath();
+                        ctx.roundRect(x, y, size, size, radius);
+                        ctx.fill();
+
+                        // Glowing neon purple trim
+                        ctx.strokeStyle = 'rgba(139, 92, 246, 0.55)';
+                        ctx.lineWidth = Math.max(1.2, tileSize * 0.05);
+                        ctx.stroke();
+
+                        // Subtle inner highlight
+                        ctx.fillStyle = 'rgba(167, 139, 250, 0.08)';
+                        ctx.beginPath();
+                        ctx.roundRect(x + 2, y + 2, size - 4, (size - 4) * 0.45, radius * 0.6);
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+
+        function drawSouls() {
+            for (let i = 0; i < souls.length; i++) {
+                const s = souls[i];
+                if (s.collected) continue;
+
+                const cx = (s.c + 0.5) * tileSize;
+                const floatOffset = Math.sin(animTime * 4.2 + s.phase) * (tileSize * 0.09);
+                const cy = (s.r + 0.5) * tileSize + floatOffset;
+                const pulse = 1 + Math.sin(animTime * 5.5 + s.phase) * 0.14;
+                const baseR = tileSize * 0.16 * pulse;
+
+                // Outer ethereal aura
+                const grad = ctx.createRadialGradient(cx, cy, baseR * 0.2, cx, cy, baseR * 2.5);
+                grad.addColorStop(0, 'rgba(103, 232, 249, 0.95)');
+                grad.addColorStop(0.45, 'rgba(34, 211, 238, 0.35)');
+                grad.addColorStop(1, 'rgba(34, 211, 238, 0)');
+
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(cx, cy, baseR * 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Cute little wisp tail
+                ctx.fillStyle = 'rgba(165, 243, 252, 0.75)';
+                ctx.beginPath();
+                ctx.moveTo(cx - baseR * 0.75, cy);
+                ctx.quadraticCurveTo(cx, cy - baseR * 1.9, cx + baseR * 0.75, cy);
+                ctx.fill();
+
+                // Bright core orb
+                ctx.fillStyle = '#ecfeff';
+                ctx.beginPath();
+                ctx.arc(cx, cy, baseR * 0.85, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawReaper() {
+            const cx = (player.x + 0.5) * tileSize;
+            const cy = (player.y + 0.5) * tileSize;
+            const r = tileSize * 0.42;
+            const bobY = Math.sin(player.bobPhase) * (tileSize * 0.05);
+
+            ctx.save();
+            ctx.translate(cx, cy + bobY);
+
+            // Ground shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+            ctx.beginPath();
+            ctx.ellipse(0, r * 0.95 - bobY, r * 0.75, r * 0.25, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Flip horizontally based on facing direction
+            ctx.scale(player.facing, 1);
+
+            // --- Little Scythe (behind/beside reaper) ---
+            ctx.save();
+            const scytheSwing = Math.sin(player.bobPhase * 0.5) * 0.12 + player.chompTimer * 0.45;
+            ctx.translate(r * 0.48, r * 0.1);
+            ctx.rotate(scytheSwing);
+
+            // Scythe handle
+            ctx.strokeStyle = '#b45309';
+            ctx.lineWidth = Math.max(2, tileSize * 0.065);
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(0, -r * 0.85);
+            ctx.lineTo(0, r * 0.75);
+            ctx.stroke();
+
+            // Crescent blade
+            ctx.fillStyle = '#e2e8f0';
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, -r * 0.85);
+            ctx.quadraticCurveTo(-r * 0.75, -r * 1.05, -r * 0.95, -r * 0.45);
+            ctx.quadraticCurveTo(-r * 0.55, -r * 0.72, 0, -r * 0.62);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+
+            // --- Cute Reaper Cloak & Hood ---
+            const cloakGrad = ctx.createLinearGradient(0, -r, 0, r);
+            cloakGrad.addColorStop(0, '#312e81');
+            cloakGrad.addColorStop(1, '#1e1b4b');
+
+            ctx.fillStyle = cloakGrad;
+            ctx.strokeStyle = '#a78bfa';
+            ctx.lineWidth = Math.max(1.5, tileSize * 0.045);
+
+            ctx.beginPath();
+            // Pointed cute hood tip
+            ctx.moveTo(-r * 0.15, -r * 0.95);
+            ctx.quadraticCurveTo(r * 0.78, -r * 0.8, r * 0.78, r * 0.65);
+            // Wavy ghost hem at the bottom
+            ctx.lineTo(r * 0.45, r * 0.48);
+            ctx.lineTo(r * 0.15, r * 0.72);
+            ctx.lineTo(-r * 0.15, r * 0.48);
+            ctx.lineTo(-r * 0.45, r * 0.72);
+            ctx.lineTo(-r * 0.75, r * 0.62);
+            ctx.quadraticCurveTo(-r * 0.78, -r * 0.65, -r * 0.15, -r * 0.95);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // --- Shadowed Face Cavity ---
+            ctx.fillStyle = '#090612';
+            ctx.beginPath();
+            ctx.ellipse(r * 0.12, -r * 0.15, r * 0.44, r * 0.38, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // --- Glowing Cute Eyes ---
+            ctx.fillStyle = '#22d3ee';
+            ctx.shadowColor = '#22d3ee';
+            ctx.shadowBlur = 6;
+
+            const eyeScaleY = player.chompTimer > 0.3 ? 0.55 : 1.0; // Happy squint when eating soul!
+            ctx.beginPath();
+            ctx.ellipse(r * 0.02, -r * 0.16, r * 0.11, r * 0.13 * eyeScaleY, 0, 0, Math.PI * 2);
+            ctx.ellipse(r * 0.32, -r * 0.16, r * 0.11, r * 0.13 * eyeScaleY, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+
+            // --- Cute Little "Nom" Mouth when collecting a soul ---
+            if (player.chompTimer > 0.05) {
+                ctx.fillStyle = '#f43f5e';
+                ctx.beginPath();
+                ctx.arc(r * 0.17, r * 0.03, r * 0.13 * player.chompTimer, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawParticles() {
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                ctx.globalAlpha = Math.max(0, p.life);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1.0;
+        }
+
+        // ==========================================
+        // 10. MAIN GAME LOOP
+        // ==========================================
+        function gameLoop(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const dt = Math.min(0.05, (timestamp - lastTimestamp) / 1000); // Cap dt for tab-switch safety
+            lastTimestamp = timestamp;
+            animTime += dt;
+
+            if (gameState === 'PLAYING') {
+                timeRemaining -= dt;
+                if (timeRemaining <= 0) {
+                    triggerLose();
+                } else {
+                    updatePlayer(dt);
+                    updateHUD();
+                }
+            } else {
+                // Keep subtle idle floating animations alive on start/end screens
+                player.bobPhase += dt * 4;
+            }
+
+            updateParticles(dt);
+
+            // Render frame
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawMaze();
+            drawSouls();
+            drawReaper();
+            drawParticles();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start on window load
+        window.onload = function () {
+            resizeCanvas();
+            resetGame();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>

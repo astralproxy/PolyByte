@@ -1,0 +1,2315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Deadeye Reel — 1932 Cartoon Arcade Shooter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Courier+Prime:ital,wght@0,400;0,700;1,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --parchment: #f4ebd9;
+      --sepia-dark: #221a12;
+      --sepia-mid: #5a4632;
+      --ink: #14100c;
+      --crimson: #b5332a;
+      --brass: #d4a345;
+      --sage: #6c7a5c;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #14100c;
+      font-family: 'Courier Prime', monospace;
+      color: var(--parchment);
+    }
+
+    #game-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    canvas#gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    /* Vintage Film Vignette & Border Frame */
+    .film-frame {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      box-shadow: inset 0 0 85px rgba(10, 7, 4, 0.88), inset 0 0 18px rgba(0, 0, 0, 0.95);
+      border: 4px solid #14100c;
+      z-index: 5;
+    }
+
+    /* HUD Layer */
+    #hud {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: env(safe-area-inset-top, 12px) env(safe-area-inset-right, 14px) env(safe-area-inset-bottom, 14px) env(safe-area-inset-left, 14px);
+    }
+
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+    }
+
+    .vintage-card {
+      background: rgba(244, 235, 217, 0.92);
+      color: var(--ink);
+      border: 3px solid var(--ink);
+      border-radius: 12px;
+      padding: 6px 12px;
+      box-shadow: 3px 4px 0px var(--ink);
+      display: flex;
+      flex-direction: column;
+      min-width: 90px;
+    }
+
+    .vintage-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--sepia-mid);
+      line-height: 1.1;
+    }
+
+    .vintage-value {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 1.25rem;
+      font-weight: 900;
+      line-height: 1.2;
+      color: var(--ink);
+    }
+
+    .hearts-row {
+      display: flex;
+      gap: 4px;
+      margin-top: 2px;
+      font-size: 1.1rem;
+    }
+
+    .hud-controls-top {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .icon-btn {
+      background: var(--parchment);
+      color: var(--ink);
+      border: 3px solid var(--ink);
+      border-radius: 10px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.05rem;
+      box-shadow: 2px 3px 0px var(--ink);
+      cursor: pointer;
+      transition: transform 0.08s ease;
+    }
+
+    .icon-btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 0px 1px 0px var(--ink);
+    }
+
+    /* Bottom Controls & Cylinder Display */
+    .hud-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 6px 10px;
+      gap: 12px;
+    }
+
+    .ammo-panel {
+      background: rgba(244, 235, 217, 0.94);
+      color: var(--ink);
+      border: 3px solid var(--ink);
+      border-radius: 14px;
+      padding: 8px 12px;
+      box-shadow: 3px 4px 0px var(--ink);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: auto;
+    }
+
+    .cylinder-visual {
+      display: flex;
+      gap: 5px;
+      margin: 4px 0;
+    }
+
+    .bullet-pip {
+      width: 12px;
+      height: 22px;
+      border-radius: 6px 6px 2px 2px;
+      border: 2px solid var(--ink);
+      background: var(--brass);
+      transition: all 0.12s ease;
+    }
+
+    .bullet-pip.spent {
+      background: #cfc3ae;
+      opacity: 0.38;
+      transform: translateY(3px);
+    }
+
+    /* Ergonomic Thumb Cover / Reload Button */
+    #cover-btn {
+      pointer-events: auto;
+      background: linear-gradient(180deg, #e05246 0%, #b5332a 100%);
+      color: #fff8eb;
+      border: 4px solid var(--ink);
+      border-radius: 20px;
+      padding: 14px 20px;
+      min-width: 146px;
+      min-height: 68px;
+      box-shadow: 4px 5px 0px var(--ink);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.08s ease, background 0.12s ease;
+    }
+
+    #cover-btn.active {
+      transform: translate(3px, 4px);
+      box-shadow: 1px 1px 0px var(--ink);
+      background: linear-gradient(180deg, #5d7a52 0%, #3d5435 100%);
+    }
+
+    #cover-btn .btn-main {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 1.05rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-shadow: 1px 2px 0px var(--ink);
+    }
+
+    #cover-btn .btn-sub {
+      font-size: 0.68rem;
+      font-weight: 700;
+      opacity: 0.92;
+      margin-top: 2px;
+      letter-spacing: 0.05em;
+    }
+
+    /* Center Action Prompt ("RELOAD!" or "INCOMING!") */
+    #action-banner {
+      position: absolute;
+      top: 22%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 12;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+
+    #action-banner.visible {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.04);
+    }
+
+    .action-pill {
+      display: inline-block;
+      background: var(--crimson);
+      color: var(--parchment);
+      font-family: 'Cinzel Decorative', serif;
+      font-weight: 900;
+      font-size: clamp(1.1rem, 3.6vw, 1.75rem);
+      padding: 8px 20px;
+      border: 3px solid var(--ink);
+      border-radius: 999px;
+      box-shadow: 4px 5px 0px var(--ink);
+      letter-spacing: 0.06em;
+      animation: wobblePill 0.45s infinite alternate ease-in-out;
+    }
+
+    @keyframes wobblePill {
+      from { transform: rotate(-2deg) scale(0.98); }
+      to { transform: rotate(2deg) scale(1.03); }
+    }
+
+    /* Overlay Screens (Title & Game Over) */
+    .overlay-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 25;
+      background: rgba(20, 16, 12, 0.82);
+      backdrop-filter: blur(3px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      pointer-events: auto;
+    }
+
+    .overlay-screen.hidden {
+      display: none;
+    }
+
+    .title-card {
+      background: var(--parchment);
+      color: var(--ink);
+      border: 4px solid var(--ink);
+      border-radius: 22px;
+      box-shadow: 8px 10px 0px var(--ink);
+      max-width: 470px;
+      width: 100%;
+      padding: 24px 22px;
+      text-align: center;
+      position: relative;
+    }
+
+    .reel-badge {
+      display: inline-block;
+      background: var(--ink);
+      color: var(--parchment);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+
+    .game-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1.75rem, 6vw, 2.45rem);
+      font-weight: 900;
+      line-height: 1.05;
+      margin: 4px 0 8px;
+      color: var(--ink);
+    }
+
+    .subtitle {
+      font-size: 0.86rem;
+      color: var(--sepia-mid);
+      margin-bottom: 16px;
+      line-height: 1.4;
+      font-weight: 700;
+    }
+
+    .rules-box {
+      background: #e9dcc4;
+      border: 2px dashed var(--ink);
+      border-radius: 14px;
+      padding: 12px 14px;
+      text-align: left;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      margin-bottom: 18px;
+    }
+
+    .rules-box div {
+      margin-bottom: 5px;
+    }
+
+    .rules-box div:last-child {
+      margin-bottom: 0;
+    }
+
+    .primary-btn {
+      width: 100%;
+      background: linear-gradient(180deg, #d89b3c 0%, #b87b22 100%);
+      color: var(--ink);
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 1.25rem;
+      font-weight: 900;
+      padding: 14px 20px;
+      border: 3px solid var(--ink);
+      border-radius: 14px;
+      box-shadow: 4px 5px 0px var(--ink);
+      cursor: pointer;
+      transition: transform 0.08s ease;
+    }
+
+    .primary-btn:active {
+      transform: translate(3px, 4px);
+      box-shadow: 1px 1px 0px var(--ink);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 14px 0 18px;
+    }
+
+    .stat-cell {
+      background: #e9dcc4;
+      border: 2px solid var(--ink);
+      border-radius: 10px;
+      padding: 8px;
+    }
+
+    @media (max-width: 480px) {
+      .vintage-card {
+        padding: 5px 9px;
+        min-width: 74px;
+      }
+      .vintage-value {
+        font-size: 1.05rem;
+      }
+      #cover-btn {
+        min-width: 132px;
+        min-height: 64px;
+        padding: 12px 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-wrapper">
+    <canvas id="gameCanvas"></canvas>
+    <div class="film-frame"></div>
+
+    <!-- HUD Layer -->
+    <div id="hud">
+      <div class="hud-top">
+        <div class="vintage-card">
+          <span class="vintage-label">Score</span>
+          <span class="vintage-value" id="hud-score">0</span>
+          <span class="vintage-label" id="hud-combo" style="color:#b5332a; min-height:12px;"></span>
+        </div>
+
+        <div class="vintage-card" style="align-items:center;">
+          <span class="vintage-label" id="hud-wave">WAVE 1</span>
+          <div class="hearts-row" id="hud-hearts" title="Health">
+            <span>🖤</span><span>🖤</span><span>🖤</span><span>🖤</span>
+          </div>
+        </div>
+
+        <div class="hud-controls-top">
+          <button class="icon-btn" id="music-toggle" title="Toggle Ragtime Music">🎵</button>
+          <button class="icon-btn" id="sound-toggle" title="Toggle Sound FX">🔊</button>
+        </div>
+      </div>
+
+      <!-- Center Warning / Reload Prompt -->
+      <div id="action-banner">
+        <div class="action-pill" id="action-banner-text">RELOAD!</div>
+      </div>
+
+      <div class="hud-bottom">
+        <div class="ammo-panel" id="ammo-panel">
+          <span class="vintage-label" id="ammo-label">6 / 6 ROUNDS</span>
+          <div class="cylinder-visual" id="cylinder-visual">
+            <div class="bullet-pip"></div>
+            <div class="bullet-pip"></div>
+            <div class="bullet-pip"></div>
+            <div class="bullet-pip"></div>
+            <div class="bullet-pip"></div>
+            <div class="bullet-pip"></div>
+          </div>
+          <span class="vintage-label" style="font-size:0.58rem;">TAP OR HOLD-DRAG TO AIM</span>
+        </div>
+
+        <button id="cover-btn" aria-label="Duck and Reload">
+          <span class="btn-main">🛡️ DUCK / RELOAD</span>
+          <span class="btn-sub">HOLD TO COVER (SPACE)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Start Title Card -->
+    <div class="overlay-screen" id="start-screen">
+      <div class="title-card">
+        <div class="reel-badge">FLEISCHER-VISION PRESENTS • REEL NO. 13</div>
+        <h1 class="game-title">DEADEYE REEL</h1>
+        <p class="subtitle">1932 Rubber-Hose Arcade Rail-Shooter</p>
+
+        <div class="rules-box">
+          <div>🎯 <strong>HEADSHOTS ONLY:</strong> Only skull shots destroy zombies &amp; score points!</div>
+          <div>💥 <strong>DISMEMBERMENT:</strong> Blast off arms to stop attacks or legs to make 'em crawl.</div>
+          <div>📱 <strong>TAP OR HOLD-DRAG:</strong> Quick-tap to snap-fire, or <strong>hold &amp; drag</strong> to aim down sights above your thumb &amp; release!</div>
+          <div>🛡️ <strong>TIME CRISIS COVER:</strong> Hold <strong>DUCK / RELOAD</strong> (or Space / Right-Click) to reload &amp; dodge incoming attacks.</div>
+        </div>
+
+        <div style="font-size:0.78rem; font-weight:700; margin-bottom:12px; color:#5a4632;">
+          HIGH SCORE: <span id="start-highscore">0</span>
+        </div>
+
+        <button class="primary-btn" id="start-btn">▶ ROLL FILM!</button>
+      </div>
+    </div>
+
+    <!-- Game Over Card -->
+    <div class="overlay-screen hidden" id="gameover-screen">
+      <div class="title-card">
+        <div class="reel-badge" style="background:#b5332a;">THE END • REEL SNAPPED</div>
+        <h1 class="game-title">CURTAINS!</h1>
+        <p class="subtitle" id="gameover-reason">The cartoon horde overran your barricade!</p>
+
+        <div class="stats-grid">
+          <div class="stat-cell">
+            <div class="vintage-label">Final Score</div>
+            <div class="vintage-value" id="final-score">0</div>
+          </div>
+          <div class="stat-cell">
+            <div class="vintage-label">High Score</div>
+            <div class="vintage-value" id="final-highscore">0</div>
+          </div>
+          <div class="stat-cell">
+            <div class="vintage-label">Wave Reached</div>
+            <div class="vintage-value" id="final-wave">1</div>
+          </div>
+          <div class="stat-cell">
+            <div class="vintage-label">Headshot Acc.</div>
+            <div class="vintage-value" id="final-accuracy">0%</div>
+          </div>
+        </div>
+
+        <button class="primary-btn" id="restart-btn">↻ PLAY AGAIN</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * DEADEYE REEL (1932 Rubber-Hose Arcade Rail-Shooter)
+     * Single-file HTML5 Canvas game featuring:
+     * - Time Crisis cover/reload & enemy telegraph mechanics
+     * - Modular limb dismemberment (left/right arms, legs, headshots-only kills)
+     * - Mobile-friendly tap-to-shoot + touch-hold-drag ADS reticle with thumb offset
+     * - Procedural Web Audio API sound effects & optional vintage ragtime synth loop
+     */
+
+    (() => {
+      // =========================================================================
+      // 1. WEB AUDIO SYNTHESIZER (SFX & VINTAGE RAGTIME PIANO LOOP)
+      // =========================================================================
+      class RetroAudioEngine {
+        constructor() {
+          this.ctx = null;
+          this.sfxEnabled = true;
+          this.musicEnabled = true;
+          this.musicTimer = null;
+          this.step = 0;
+        }
+
+        init() {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioCtx();
+          }
+          if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        }
+
+        playGunshot() {
+          if (!this.sfxEnabled) return;
+          this.init();
+          const now = this.ctx.currentTime;
+
+          // Punchy revolver crack (noise burst + low thump)
+          const bufferSize = this.ctx.sampleRate * 0.16;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.032));
+          }
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(1150, now);
+          filter.Q.value = 0.9;
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.65, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+
+          // Low punch oscillator
+          const osc = this.ctx.createOscillator();
+          const oscGain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(185, now);
+          osc.frequency.exponentialRampToValueAtTime(42, now + 0.11);
+          oscGain.gain.setValueAtTime(0.55, now);
+          oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.11);
+          osc.connect(oscGain);
+          oscGain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        }
+
+        playDryFire() {
+          if (!this.sfxEnabled) return;
+          this.init();
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(950, now);
+          osc.frequency.exponentialRampToValueAtTime(420, now + 0.035);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.035);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.04);
+        }
+
+        playReload() {
+          if (!this.sfxEnabled) return;
+          this.init();
+          const now = this.ctx.currentTime;
+          // Metallic cylinder spin & snap
+          [0, 0.06, 0.12, 0.22].forEach((offset, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = idx === 3 ? 'triangle' : 'sine';
+            osc.frequency.setValueAtTime(idx === 3 ? 680 : 1200 + idx * 180, now + offset);
+            osc.frequency.exponentialRampToValueAtTime(idx === 3 ? 280 : 500, now + offset + 0.045);
+            gain.gain.setValueAtTime(0.22, now + offset);
+            gain.gain.exponentialRampToValueAtTime(0.005, now + offset + 0.05);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + offset);
+            osc.stop(now + offset + 0.055);
+          });
+        }
+
+        playHeadshotDing() {
+          if (!this.sfxEnabled) return;
+          this.init();
+          const now = this.ctx.currentTime;
+          // Classic arcade cash-register bell "DING!"
+          [1567.98, 2349.32].forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(idx === 0 ? 0.34 : 0.18, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.56);
+          });
+        }
+
+        playLimbPop() {
+          if (!this.sfxEnabled) return;
+          this.init();
+          const now = this.ctx.currentTime;
+          // Rubber-hose cartoon "BOING-POP!"
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(210, now);
+          osc.frequency.exponentialRampToValueAtTime(640, now + 0.09);
+          osc.frequency.exponentialRampToValueAtTime(160, now + 0.22);
+          gain.gain.setValueAtTime(0.32, now);
+          gain.gain.exponentialRampToValueAtTime(0.005, now + 0.23);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.24);
+        }
+
+        playDamage() {
+          if (!this.sfxEnabled) return;
+          this.init();
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(145, now);
+          osc.frequency.linearRampToValueAtTime(55, now + 0.28);
+          gain.gain.setValueAtTime(0.4, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.29);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        }
+
+        playDeflect() {
+          if (!this.sfxEnabled) return;
+          this.init();
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(140, now + 0.12);
+          gain.gain.setValueAtTime(0.28, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.13);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.14);
+        }
+
+        startMusic() {
+          if (this.musicTimer) return;
+          // Spooky minor-key 1930s ragtime stride pattern
+          const bassNotes = [110, 164.81, 130.81, 164.81, 110, 164.81, 146.83, 155.56];
+          const leadNotes = [440, 0, 523.25, 493.88, 440, 392.0, 329.63, 392.0, 440, 523.25, 659.25, 587.33, 523.25, 493.88, 440, 0];
+
+          this.musicTimer = setInterval(() => {
+            if (!this.musicEnabled || !this.ctx || this.ctx.state !== 'running') return;
+            const now = this.ctx.currentTime;
+
+            // Stride bass
+            const bassFreq = bassNotes[this.step % bassNotes.length];
+            if (bassFreq) {
+              const bOsc = this.ctx.createOscillator();
+              const bGain = this.ctx.createGain();
+              bOsc.type = 'triangle';
+              bOsc.frequency.setValueAtTime(bassFreq, now);
+              bGain.gain.setValueAtTime(0.06, now);
+              bGain.gain.exponentialRampToValueAtTime(0.002, now + 0.18);
+              bOsc.connect(bGain);
+              bGain.connect(this.ctx.destination);
+              bOsc.start(now);
+              bOsc.stop(now + 0.19);
+            }
+
+            // Honky-tonk detuned lead
+            const leadFreq = leadNotes[this.step % leadNotes.length];
+            if (leadFreq) {
+              [-3, 4].forEach(detune => {
+                const lOsc = this.ctx.createOscillator();
+                const lGain = this.ctx.createGain();
+                lOsc.type = 'sine';
+                lOsc.frequency.setValueAtTime(leadFreq + detune, now);
+                lGain.gain.setValueAtTime(0.032, now);
+                lGain.gain.exponentialRampToValueAtTime(0.002, now + 0.16);
+                lOsc.connect(lGain);
+                lGain.connect(this.ctx.destination);
+                lOsc.start(now);
+                lOsc.stop(now + 0.17);
+              });
+            }
+
+            this.step++;
+          }, 215);
+        }
+
+        stopMusic() {
+          if (this.musicTimer) {
+            clearInterval(this.musicTimer);
+            this.musicTimer = null;
+          }
+        }
+      }
+
+      const audio = new RetroAudioEngine();
+
+      // =========================================================================
+      // 2. GAME STATE & CONFIGURATION
+      // =========================================================================
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+
+      const MAX_AMMO = 6;
+      const MAX_HEALTH = 4;
+      const HIGHSCORE_KEY = 'deadeye_reel_1932_highscore';
+
+      const state = {
+        mode: 'START', // 'START' | 'PLAYING' | 'GAMEOVER'
+        width: 800,
+        height: 600,
+        dpr: 1,
+        time: 0,
+        lastFrame: 0,
+
+        // Player stats
+        score: 0,
+        highScore: parseInt(localStorage.getItem(HIGHSCORE_KEY) || '0', 10),
+        combo: 0,
+        shotsFired: 0,
+        headshotsLanded: 0,
+        ammo: MAX_AMMO,
+        health: MAX_HEALTH,
+
+        // Cover / Time Crisis state
+        isCovering: false,
+        coverLerp: 0, // 0 = standing, 1 = fully behind barricade
+        reloadTimer: 0,
+
+        // Aiming / Touch ADS state
+        pointerActive: false,
+        pointerId: null,
+        pointerStartX: 0,
+        pointerStartY: 0,
+        pointerX: 0,
+        pointerY: 0,
+        aimX: 0,
+        aimY: 0,
+        isADS: false,
+        holdDuration: 0,
+        isTouchInput: false,
+
+        // Wave progression
+        wave: 1,
+        zombiesToSpawn: 0,
+        spawnTimer: 0,
+        waveBannerTimer: 0,
+        waveBannerText: '',
+
+        // Visual FX
+        screenShake: 0,
+        muzzleFlash: 0,
+        damageFlash: 0,
+        lastShotLine: null,
+
+        // Entities
+        zombies: [],
+        projectiles: [],
+        severedLimbs: [],
+        particles: [],
+        floatingTexts: []
+      };
+
+      // =========================================================================
+      // 3. DOM REFERENCES & HUD SYNC
+      // =========================================================================
+      const hudScore = document.getElementById('hud-score');
+      const hudCombo = document.getElementById('hud-combo');
+      const hudWave = document.getElementById('hud-wave');
+      const hudHearts = document.getElementById('hud-hearts');
+      const ammoLabel = document.getElementById('ammo-label');
+      const cylinderVisual = document.getElementById('cylinder-visual');
+      const coverBtn = document.getElementById('cover-btn');
+      const actionBanner = document.getElementById('action-banner');
+      const actionBannerText = document.getElementById('action-banner-text');
+
+      const startScreen = document.getElementById('start-screen');
+      const gameoverScreen = document.getElementById('gameover-screen');
+      const startHighscore = document.getElementById('start-highscore');
+
+      startHighscore.textContent = state.highScore.toLocaleString();
+
+      function updateHUD() {
+        hudScore.textContent = state.score.toLocaleString();
+        hudWave.textContent = `WAVE ${state.wave}`;
+
+        if (state.combo > 1) {
+          hudCombo.textContent = `${state.combo}x HEADSHOT STREAK!`;
+        } else {
+          hudCombo.textContent = '';
+        }
+
+        // Hearts
+        let heartsHTML = '';
+        for (let i = 0; i < MAX_HEALTH; i++) {
+          heartsHTML += i < state.health ? '<span>🖤</span>' : '<span style="opacity:0.25">🤍</span>';
+        }
+        hudHearts.innerHTML = heartsHTML;
+
+        // Ammo cylinder pips
+        ammoLabel.textContent = state.isCovering && state.ammo < MAX_AMMO
+          ? 'RELOADING...'
+          : `${state.ammo} / ${MAX_AMMO} ROUNDS`;
+
+        const pips = cylinderVisual.children;
+        for (let i = 0; i < MAX_AMMO; i++) {
+          if (i < state.ammo) {
+            pips[i].classList.remove('spent');
+          } else {
+            pips[i].classList.add('spent');
+          }
+        }
+
+        // Action prompt ("INCOMING!" or "RELOAD!")
+        const incomingThreat = state.projectiles.some(p => p.progress > 0.45) ||
+          state.zombies.some(z => z.alive && z.z > 0.86 && z.attackWindup > 0.45);
+
+        if (state.mode === 'PLAYING' && !state.isCovering) {
+          if (incomingThreat) {
+            actionBannerText.textContent = '⚠️ DUCK! INCOMING!';
+            actionBannerText.style.background = '#b5332a';
+            actionBanner.classList.add('visible');
+          } else if (state.ammo === 0) {
+            actionBannerText.textContent = '🔄 HOLD DUCK TO RELOAD!';
+            actionBannerText.style.background = '#c27d22';
+            actionBanner.classList.add('visible');
+          } else {
+            actionBanner.classList.remove('visible');
+          }
+        } else {
+          actionBanner.classList.remove('visible');
+        }
+      }
+
+      // =========================================================================
+      // 4. RESPONSIVE CANVAS RESIZING
+      // =========================================================================
+      function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        state.width = rect.width;
+        state.height = rect.height;
+        canvas.width = Math.floor(state.width * state.dpr);
+        canvas.height = Math.floor(state.height * state.dpr);
+        ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+      }
+
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      // =========================================================================
+      // 5. ZOMBIE ARCHETYPES & SPAWNING
+      // =========================================================================
+      const ZOMBIE_TYPES = {
+        GENT: {
+          name: 'Dapper Ghoul',
+          scaleW: 1.0,
+          scaleH: 1.0,
+          speed: 0.068,
+          points: 100,
+          hat: 'tophat',
+          coatColor: '#3a342e',
+          skinColor: '#cfd3be',
+          canThrow: true
+        },
+        FLAPPER: {
+          name: 'Flapper Banshee',
+          scaleW: 0.92,
+          scaleH: 0.96,
+          speed: 0.088,
+          points: 125,
+          hat: 'cloche',
+          coatColor: '#7c4c47',
+          skinColor: '#d9d5c5',
+          canThrow: false
+        },
+        BUTCHER: {
+          name: 'Heavy Butcher',
+          scaleW: 1.28,
+          scaleH: 1.08,
+          speed: 0.052,
+          points: 150,
+          hat: 'boater',
+          coatColor: '#5c6654',
+          skinColor: '#c3c9b4',
+          canThrow: true
+        },
+        CRAWLER: {
+          name: 'Alley Crawler',
+          scaleW: 0.98,
+          scaleH: 0.82,
+          speed: 0.078,
+          points: 120,
+          hat: 'none',
+          coatColor: '#4a4238',
+          skinColor: '#cbcbb8',
+          startLegless: true,
+          canThrow: false
+        }
+      };
+
+      function startWave(waveNum) {
+        state.wave = waveNum;
+        state.zombiesToSpawn = 4 + waveNum * 2;
+        state.spawnTimer = 0.6;
+        state.waveBannerText = `WAVE ${waveNum}`;
+        state.waveBannerTimer = 2.2;
+        updateHUD();
+      }
+
+      function spawnZombie() {
+        const pool = ['GENT'];
+        if (state.wave >= 1) pool.push('FLAPPER');
+        if (state.wave >= 2) pool.push('BUTCHER');
+        if (state.wave >= 3) pool.push('CRAWLER');
+
+        const typeKey = pool[Math.floor(Math.random() * pool.length)];
+        const cfg = ZOMBIE_TYPES[typeKey];
+
+        // Lane spread from -0.78 to +0.78 across the street
+        const laneX = (Math.random() * 1.52) - 0.76;
+        const speedBoost = 1 + (state.wave - 1) * 0.06;
+
+        state.zombies.push({
+          id: Math.random(),
+          type: typeKey,
+          cfg,
+          laneX,
+          z: 0.04, // Depth: 0.0 = far horizon, 1.0 = right at player barricade
+          baseSpeed: cfg.speed * speedBoost,
+          walkPhase: Math.random() * Math.PI * 2,
+          alive: true,
+          deathTimer: 0,
+
+          // Modular limbs
+          hasHead: true,
+          hasLeftArm: true,
+          hasRightArm: true,
+          hasLegs: !cfg.startLegless,
+          hasHat: cfg.hat !== 'none',
+
+          // Animation & combat timers
+          staggerTimer: 0,
+          attackWindup: 0,
+          throwCooldown: 2.5 + Math.random() * 3.0,
+          hitboxes: null // Computed every frame during projection
+        });
+      }
+
+      // =========================================================================
+      // 6. PERSPECTIVE PROJECTION & HITBOX CALCULATION
+      // =========================================================================
+      function projectZombie(zObj) {
+        const horizonY = state.height * 0.37;
+        const groundY = state.height * 0.90;
+
+        // Perspective curve so distant zombies look small and accelerate naturally as they near
+        const persp = Math.pow(zObj.z, 1.28);
+        const scale = 0.22 + persp * 1.15;
+
+        const spreadHalfW = state.width * (0.14 + persp * 0.34);
+        const screenX = (state.width * 0.5) + zObj.laneX * spreadHalfW;
+        const footY = horizonY + persp * (groundY - horizonY);
+
+        const bodyW = 54 * scale * zObj.cfg.scaleW;
+        const legH = zObj.hasLegs ? (58 * scale * zObj.cfg.scaleH) : (12 * scale);
+        const torsoH = 62 * scale * zObj.cfg.scaleH;
+        const headR = 25 * scale;
+
+        const bounce = zObj.alive
+          ? Math.abs(Math.sin(zObj.walkPhase)) * (zObj.hasLegs ? 8 * scale : 4 * scale)
+          : 0;
+        const sway = zObj.alive
+          ? Math.sin(zObj.walkPhase * 0.5) * 6 * scale
+          : 0;
+
+        const hipY = footY - legH + bounce;
+        const shoulderY = hipY - torsoH;
+        const headCenterY = shoulderY - headR * 0.85;
+        const headCenterX = screenX + sway * 1.15;
+
+        // Generous arcade hitboxes for responsive mobile tapping
+        const pad = Math.max(6, 10 * scale);
+        zObj.hitboxes = {
+          scale,
+          screenX,
+          footY,
+          hipY,
+          shoulderY,
+          sway,
+          head: {
+            x: headCenterX,
+            y: headCenterY,
+            r: headR * 1.24 + pad * 0.45
+          },
+          torso: {
+            x: screenX - bodyW * 0.52,
+            y: shoulderY,
+            w: bodyW * 1.04,
+            h: torsoH
+          },
+          leftArm: {
+            x: screenX - bodyW * 0.95 - pad * 0.4,
+            y: shoulderY - 4 * scale,
+            w: bodyW * 0.52 + pad * 0.4,
+            h: torsoH * 0.92
+          },
+          rightArm: {
+            x: screenX + bodyW * 0.43,
+            y: shoulderY - 4 * scale,
+            w: bodyW * 0.52 + pad * 0.4,
+            h: torsoH * 0.92
+          },
+          legs: {
+            x: screenX - bodyW * 0.5,
+            y: hipY,
+            w: bodyW,
+            h: legH
+          }
+        };
+      }
+
+      // =========================================================================
+      // 7. SHOOTING, DISMEMBERMENT & COVER MECHANICS
+      // =========================================================================
+      function setCover(covering) {
+        if (state.mode !== 'PLAYING') return;
+        if (state.isCovering === covering) return;
+
+        state.isCovering = covering;
+        if (covering) {
+          coverBtn.classList.add('active');
+          state.reloadTimer = 0.35; // Quick Time-Crisis snap reload!
+          // Cancel active ADS if player ducks into cover
+          state.pointerActive = false;
+          state.isADS = false;
+        } else {
+          coverBtn.classList.remove('active');
+        }
+        updateHUD();
+      }
+
+      function spawnParticles(x, y, color, count = 12, speedScale = 1) {
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = (60 + Math.random() * 210) * speedScale;
+          state.particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 60,
+            radius: 3 + Math.random() * 6,
+            color,
+            life: 0.35 + Math.random() * 0.35,
+            maxLife: 0.7
+          });
+        }
+      }
+
+      function spawnSeveredLimb(x, y, limbType, scale, skinColor, coatColor) {
+        const dir = limbType === 'LEFT_ARM' ? -1 : (limbType === 'RIGHT_ARM' ? 1 : (Math.random() < 0.5 ? -1 : 1));
+        state.severedLimbs.push({
+          x,
+          y,
+          vx: dir * (130 + Math.random() * 140),
+          vy: -220 - Math.random() * 140,
+          rot: 0,
+          vRot: dir * (7 + Math.random() * 6),
+          limbType,
+          scale,
+          skinColor,
+          coatColor,
+          life: 1.35
+        });
+      }
+
+      function spawnFloatingText(x, y, text, color = '#14100c', size = 20) {
+        state.floatingTexts.push({
+          x,
+          y,
+          vy: -65,
+          text,
+          color,
+          size,
+          life: 0.95,
+          maxLife: 0.95
+        });
+      }
+
+      function pointInRect(px, py, r) {
+        return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+      }
+
+      function fireShot(x, y) {
+        if (state.mode !== 'PLAYING') return;
+
+        // Cannot shoot while ducked behind cover
+        if (state.isCovering) {
+          spawnFloatingText(x, y - 16, 'POP UP TO SHOOT!', '#b5332a', 16);
+          return;
+        }
+
+        if (state.ammo <= 0) {
+          audio.playDryFire();
+          spawnFloatingText(x, y - 16, '*CLICK* RELOAD!', '#b5332a', 18);
+          updateHUD();
+          return;
+        }
+
+        // Consume bullet & trigger feedback
+        state.ammo--;
+        state.shotsFired++;
+        state.muzzleFlash = 0.09;
+        state.screenShake = Math.max(state.screenShake, 7);
+        state.lastShotLine = { x, y, life: 0.12 };
+        audio.playGunshot();
+
+        // Check incoming projectiles first (can shoot thrown bottles/bones out of the air!)
+        for (let i = state.projectiles.length - 1; i >= 0; i--) {
+          const p = state.projectiles[i];
+          const dist = Math.hypot(x - p.screenX, y - p.screenY);
+          if (dist <= p.radius + 18) {
+            audio.playLimbPop();
+            spawnParticles(p.screenX, p.screenY, '#f4ebd9', 14, 1.1);
+            spawnFloatingText(p.screenX, p.screenY - 12, 'DEFLECTED! +25', '#d4a345', 18);
+            state.score += 25;
+            state.projectiles.splice(i, 1);
+            updateHUD();
+            return;
+          }
+        }
+
+        // Sort zombies front-to-back (highest z first) so foreground enemies block background ones
+        const sortedZombies = [...state.zombies]
+          .filter(z => z.alive && z.hitboxes)
+          .sort((a, b) => b.z - a.z);
+
+        let hitSomething = false;
+
+        for (const z of sortedZombies) {
+          const hb = z.hitboxes;
+
+          // 1. CHECK HEADSHOT FIRST (ONLY HEADSHOTS KILL & SCORE!)
+          const headDist = Math.hypot(x - hb.head.x, y - hb.head.y);
+          if (z.hasHead && headDist <= hb.head.r) {
+            hitSomething = true;
+            z.hasHead = false;
+            z.alive = false;
+            z.deathTimer = 0.85;
+
+            state.headshotsLanded++;
+            state.combo++;
+            const bonus = (state.combo - 1) * 25;
+            const totalPts = z.cfg.points + bonus;
+            state.score += totalPts;
+
+            if (state.score > state.highScore) {
+              state.highScore = state.score;
+              localStorage.setItem(HIGHSCORE_KEY, String(state.highScore));
+            }
+
+            audio.playHeadshotDing();
+            spawnParticles(hb.head.x, hb.head.y, '#14100c', 18, 1.25);
+            spawnParticles(hb.head.x, hb.head.y, '#f4ebd9', 12, 1.0);
+            spawnSeveredLimb(hb.head.x, hb.head.y, 'HEAD', hb.scale, z.cfg.skinColor, z.cfg.coatColor);
+
+            const label = state.combo > 1
+              ? `+${totalPts} HEADSHOT (${state.combo}x)!`
+              : `+${totalPts} HEADSHOT!`;
+            spawnFloatingText(hb.head.x, hb.head.y - 24, label, '#b5332a', 21);
+            break;
+          }
+
+          // 2. CHECK LEFT ARM DISMEMBERMENT
+          if (z.hasLeftArm && pointInRect(x, y, hb.leftArm)) {
+            hitSomething = true;
+            z.hasLeftArm = false;
+            z.staggerTimer = 0.45;
+            z.attackWindup = 0;
+            audio.playLimbPop();
+            spawnParticles(hb.leftArm.x + hb.leftArm.w * 0.5, hb.leftArm.y + 14, '#14100c', 12);
+            spawnSeveredLimb(hb.leftArm.x + hb.leftArm.w * 0.5, hb.leftArm.y + 14, 'LEFT_ARM', hb.scale, z.cfg.skinColor, z.cfg.coatColor);
+            spawnFloatingText(hb.leftArm.x, hb.leftArm.y - 10, 'ARM BLOWN OFF! (0 PTS)', '#5a4632', 15);
+            break;
+          }
+
+          // 3. CHECK RIGHT ARM DISMEMBERMENT
+          if (z.hasRightArm && pointInRect(x, y, hb.rightArm)) {
+            hitSomething = true;
+            z.hasRightArm = false;
+            z.staggerTimer = 0.45;
+            z.attackWindup = 0;
+            audio.playLimbPop();
+            spawnParticles(hb.rightArm.x + hb.rightArm.w * 0.5, hb.rightArm.y + 14, '#14100c', 12);
+            spawnSeveredLimb(hb.rightArm.x + hb.rightArm.w * 0.5, hb.rightArm.y + 14, 'RIGHT_ARM', hb.scale, z.cfg.skinColor, z.cfg.coatColor);
+            spawnFloatingText(hb.rightArm.x + 20, hb.rightArm.y - 10, 'ARM BLOWN OFF! (0 PTS)', '#5a4632', 15);
+            break;
+          }
+
+          // 4. CHECK LEGS DISMEMBERMENT (MAKES ZOMBIE CRAWL!)
+          if (z.hasLegs && pointInRect(x, y, hb.legs)) {
+            hitSomething = true;
+            z.hasLegs = false;
+            z.staggerTimer = 0.55;
+            audio.playLimbPop();
+            spawnParticles(hb.screenX, hb.hipY + 12, '#14100c', 14);
+            spawnSeveredLimb(hb.screenX - 10, hb.hipY + 12, 'LEG', hb.scale, z.cfg.skinColor, z.cfg.coatColor);
+            spawnSeveredLimb(hb.screenX + 10, hb.hipY + 12, 'LEG', hb.scale, z.cfg.skinColor, z.cfg.coatColor);
+            spawnFloatingText(hb.screenX, hb.hipY - 10, 'LEGS SEVERED! CRAWLING!', '#5a4632', 15);
+            break;
+          }
+
+          // 5. CHECK TORSO BODY SHOT (STAGGERS ONLY, NO KILL / NO POINTS)
+          if (pointInRect(x, y, hb.torso)) {
+            hitSomething = true;
+            z.staggerTimer = 0.35;
+            z.z = Math.max(0.04, z.z - 0.025);
+            audio.playDeflect();
+            spawnParticles(x, y, '#f4ebd9', 8, 0.7);
+            spawnFloatingText(x, y - 16, 'BODY SHOT — AIM FOR HEAD!', '#5a4632', 15);
+            break;
+          }
+        }
+
+        if (!hitSomething) {
+          state.combo = 0;
+          spawnParticles(x, y, '#d8ccb8', 6, 0.55);
+        }
+
+        updateHUD();
+      }
+
+      // =========================================================================
+      // 8. MOBILE TAP & DRAG ADS + DESKTOP INPUT HANDLERS
+      // =========================================================================
+      const HOLD_THRESHOLD = 0.14; // Seconds before touch/click transitions into ADS precision drag
+
+      function computeAimPosition(clientX, clientY, isTouch) {
+        const rect = canvas.getBoundingClientRect();
+        const px = clientX - rect.left;
+        const py = clientY - rect.top;
+
+        // On touchscreens, offset the ADS reticle slightly ABOVE the finger so the thumb never obscures a zombie's head
+        const touchOffsetY = (isTouch && state.isADS) ? -Math.min(72, state.height * 0.11) : 0;
+        return {
+          px,
+          py,
+          ax: Math.max(16, Math.min(state.width - 16, px)),
+          ay: Math.max(24, Math.min(state.height - 24, py + touchOffsetY))
+        };
+      }
+
+      canvas.addEventListener('pointerdown', (e) => {
+        if (state.mode !== 'PLAYING') return;
+        // Right-click on desktop toggles cover
+        if (e.button === 2) {
+          setCover(true);
+          return;
+        }
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+        audio.init();
+        canvas.setPointerCapture(e.pointerId);
+
+        state.pointerActive = true;
+        state.pointerId = e.pointerId;
+        state.isTouchInput = e.pointerType === 'touch' || e.pointerType === 'pen';
+        state.holdDuration = 0;
+        state.isADS = false;
+
+        const pos = computeAimPosition(e.clientX, e.clientY, state.isTouchInput);
+        state.pointerStartX = pos.px;
+        state.pointerStartY = pos.py;
+        state.pointerX = pos.px;
+        state.pointerY = pos.py;
+        state.aimX = pos.ax;
+        state.aimY = pos.ay;
+      });
+
+      canvas.addEventListener('pointermove', (e) => {
+        if (!state.pointerActive || e.pointerId !== state.pointerId) return;
+
+        const moveDist = Math.hypot(
+          (e.clientX - canvas.getBoundingClientRect().left) - state.pointerStartX,
+          (e.clientY - canvas.getBoundingClientRect().top) - state.pointerStartY
+        );
+
+        // Dragging immediately engages ADS precision mode
+        if (moveDist > 10) {
+          state.isADS = true;
+        }
+
+        const pos = computeAimPosition(e.clientX, e.clientY, state.isTouchInput);
+        state.pointerX = pos.px;
+        state.pointerY = pos.py;
+        state.aimX = pos.ax;
+        state.aimY = pos.ay;
+      });
+
+      function handlePointerRelease(e) {
+        if (e.button === 2) {
+          setCover(false);
+          return;
+        }
+        if (!state.pointerActive || e.pointerId !== state.pointerId) return;
+
+        const pos = computeAimPosition(e.clientX, e.clientY, state.isTouchInput);
+        state.aimX = pos.ax;
+        state.aimY = pos.ay;
+
+        // Both quick-tap and ADS release fire at the exact crosshair coordinate!
+        fireShot(state.aimX, state.aimY);
+
+        state.pointerActive = false;
+        state.pointerId = null;
+        state.isADS = false;
+        state.holdDuration = 0;
+      }
+
+      canvas.addEventListener('pointerup', handlePointerRelease);
+      canvas.addEventListener('pointercancel', () => {
+        state.pointerActive = false;
+        state.isADS = false;
+      });
+      canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+      // Cover / Reload Button Touch & Mouse Events
+      coverBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        audio.init();
+        setCover(true);
+      });
+      window.addEventListener('pointerup', (e) => {
+        if (state.isCovering && e.button !== 2) {
+          setCover(false);
+        }
+      });
+
+      // Keyboard Support (Spacebar / Down Arrow / S to Duck & Reload)
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.code === 'ArrowDown' || e.code === 'KeyS') {
+          e.preventDefault();
+          setCover(true);
+        }
+      });
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space' || e.code === 'ArrowDown' || e.code === 'KeyS') {
+          e.preventDefault();
+          setCover(false);
+        }
+      });
+
+      // Top Audio Toggles & Start/Restart Buttons
+      document.getElementById('sound-toggle').addEventListener('click', (e) => {
+        audio.sfxEnabled = !audio.sfxEnabled;
+        e.currentTarget.textContent = audio.sfxEnabled ? '🔊' : '🔇';
+      });
+
+      document.getElementById('music-toggle').addEventListener('click', (e) => {
+        audio.musicEnabled = !audio.musicEnabled;
+        e.currentTarget.textContent = audio.musicEnabled ? '🎵' : '🚫';
+        if (audio.musicEnabled) {
+          audio.init();
+          audio.startMusic();
+        }
+      });
+
+      function beginNewGame() {
+        audio.init();
+        audio.startMusic();
+
+        state.mode = 'PLAYING';
+        state.score = 0;
+        state.combo = 0;
+        state.shotsFired = 0;
+        state.headshotsLanded = 0;
+        state.ammo = MAX_AMMO;
+        state.health = MAX_HEALTH;
+        state.isCovering = false;
+        state.coverLerp = 0;
+        state.zombies = [];
+        state.projectiles = [];
+        state.severedLimbs = [];
+        state.particles = [];
+        state.floatingTexts = [];
+        state.damageFlash = 0;
+
+        coverBtn.classList.remove('active');
+        startScreen.classList.add('hidden');
+        gameoverScreen.classList.add('hidden');
+
+        startWave(1);
+      }
+
+      document.getElementById('start-btn').addEventListener('click', beginNewGame);
+      document.getElementById('restart-btn').addEventListener('click', beginNewGame);
+
+      function triggerGameOver(reason) {
+        state.mode = 'GAMEOVER';
+        state.isCovering = false;
+        state.pointerActive = false;
+        state.isADS = false;
+        coverBtn.classList.remove('active');
+        actionBanner.classList.remove('visible');
+
+        const accuracy = state.shotsFired > 0
+          ? Math.round((state.headshotsLanded / state.shotsFired) * 100)
+          : 0;
+
+        document.getElementById('gameover-reason').textContent = reason;
+        document.getElementById('final-score').textContent = state.score.toLocaleString();
+        document.getElementById('final-highscore').textContent = state.highScore.toLocaleString();
+        document.getElementById('final-wave').textContent = state.wave;
+        document.getElementById('final-accuracy').textContent = `${accuracy}%`;
+
+        gameoverScreen.classList.remove('hidden');
+      }
+
+      function damagePlayer(amount = 1) {
+        if (state.mode !== 'PLAYING') return;
+        state.health = Math.max(0, state.health - amount);
+        state.combo = 0;
+        state.damageFlash = 0.45;
+        state.screenShake = 14;
+        audio.playDamage();
+        updateHUD();
+
+        if (state.health <= 0) {
+          triggerGameOver('The cartoon horde breached your barricade!');
+        }
+      }
+
+      // =========================================================================
+      // 9. SIMULATION UPDATE LOOP
+      // =========================================================================
+      function update(dt) {
+        state.time += dt;
+
+        if (state.screenShake > 0) state.screenShake = Math.max(0, state.screenShake - dt * 38);
+        if (state.muzzleFlash > 0) state.muzzleFlash = Math.max(0, state.muzzleFlash - dt);
+        if (state.damageFlash > 0) state.damageFlash = Math.max(0, state.damageFlash - dt);
+        if (state.waveBannerTimer > 0) state.waveBannerTimer = Math.max(0, state.waveBannerTimer - dt);
+        if (state.lastShotLine) {
+          state.lastShotLine.life -= dt;
+          if (state.lastShotLine.life <= 0) state.lastShotLine = null;
+        }
+
+        // Smooth cover interpolation
+        const targetCover = state.isCovering ? 1 : 0;
+        state.coverLerp += (targetCover - state.coverLerp) * Math.min(1, dt * 14);
+
+        // Reload logic while in cover
+        if (state.mode === 'PLAYING' && state.isCovering && state.ammo < MAX_AMMO) {
+          state.reloadTimer -= dt;
+          if (state.reloadTimer <= 0) {
+            state.ammo = MAX_AMMO;
+            audio.playReload();
+            spawnFloatingText(state.width * 0.5, state.height * 0.72, 'CYLINDER FULL!', '#6c7a5c', 20);
+            updateHUD();
+          }
+        }
+
+        // Hold-to-ADS timer
+        if (state.pointerActive && !state.isADS) {
+          state.holdDuration += dt;
+          if (state.holdDuration >= HOLD_THRESHOLD) {
+            state.isADS = true;
+            const pos = computeAimPosition(
+              state.pointerX + canvas.getBoundingClientRect().left,
+              state.pointerY + canvas.getBoundingClientRect().top,
+              state.isTouchInput
+            );
+            state.aimX = pos.ax;
+            state.aimY = pos.ay;
+          }
+        }
+
+        if (state.mode !== 'PLAYING') return;
+
+        // Wave Spawning
+        if (state.zombiesToSpawn > 0) {
+          state.spawnTimer -= dt;
+          if (state.spawnTimer <= 0) {
+            spawnZombie();
+            state.zombiesToSpawn--;
+            state.spawnTimer = Math.max(0.75, 1.95 - state.wave * 0.12);
+          }
+        } else if (state.zombies.length === 0) {
+          // Wave cleared!
+          startWave(state.wave + 1);
+        }
+
+        // Update Zombies
+        for (let i = state.zombies.length - 1; i >= 0; i--) {
+          const z = state.zombies[i];
+
+          if (!z.alive) {
+            z.deathTimer -= dt;
+            if (z.deathTimer <= 0) {
+              state.zombies.splice(i, 1);
+            }
+            continue;
+          }
+
+          if (z.staggerTimer > 0) {
+            z.staggerTimer -= dt;
+          } else {
+            // Crawling zombies move at 45% speed
+            const legMultiplier = z.hasLegs ? 1.0 : 0.45;
+            if (z.z < 0.94) {
+              z.z += z.baseSpeed * legMultiplier * dt;
+              z.walkPhase += (z.hasLegs ? 7.5 : 10.5) * dt;
+            }
+          }
+
+          projectZombie(z);
+
+          // Ranged throw attack (mid-range) if zombie still has at least one arm
+          if (z.cfg.canThrow && (z.hasLeftArm || z.hasRightArm) && z.z > 0.35 && z.z < 0.78) {
+            z.throwCooldown -= dt;
+            if (z.throwCooldown <= 0 && z.hitboxes) {
+              z.throwCooldown = 4.2 + Math.random() * 2.5;
+              state.projectiles.push({
+                startX: z.hitboxes.screenX,
+                startY: z.hitboxes.shoulderY,
+                screenX: z.hitboxes.screenX,
+                screenY: z.hitboxes.shoulderY,
+                progress: 0,
+                speed: 0.68,
+                rot: 0,
+                radius: 14
+              });
+            }
+          }
+
+          // Close-range melee attack at barricade (z >= 0.92)
+          if (z.z >= 0.92) {
+            if (z.hasLeftArm || z.hasRightArm) {
+              z.attackWindup += dt * 0.85;
+              if (z.attackWindup >= 1.0) {
+                z.attackWindup = 0;
+                if (state.coverLerp > 0.65) {
+                  // Blocked by cover!
+                  audio.playDeflect();
+                  spawnFloatingText(z.hitboxes.screenX, z.hitboxes.shoulderY - 20, 'BLOCKED BY COVER!', '#6c7a5c', 18);
+                } else {
+                  damagePlayer(1);
+                }
+              }
+            } else {
+              // Armless zombie can only bump harmlessly against cover
+              z.attackWindup = 0;
+            }
+          }
+        }
+
+        // Update Thrown Projectiles
+        for (let i = state.projectiles.length - 1; i >= 0; i--) {
+          const p = state.projectiles[i];
+          p.progress += p.speed * dt;
+          p.rot += 9 * dt;
+
+          const targetX = state.width * 0.5;
+          const targetY = state.height * 0.82;
+          const arc = Math.sin(p.progress * Math.PI) * 90;
+
+          p.screenX = p.startX + (targetX - p.startX) * p.progress;
+          p.screenY = p.startY + (targetY - p.startY) * p.progress - arc;
+          p.radius = 10 + p.progress * 18;
+
+          if (p.progress >= 1.0) {
+            if (state.coverLerp > 0.65) {
+              audio.playDeflect();
+              spawnParticles(p.screenX, p.screenY, '#f4ebd9', 10);
+              spawnFloatingText(p.screenX, p.screenY - 25, 'DODGED IN COVER!', '#6c7a5c', 18);
+            } else {
+              damagePlayer(1);
+            }
+            state.projectiles.splice(i, 1);
+          }
+        }
+
+        // Update Severed Limbs
+        for (let i = state.severedLimbs.length - 1; i >= 0; i--) {
+          const limb = state.severedLimbs[i];
+          limb.x += limb.vx * dt;
+          limb.y += limb.vy * dt;
+          limb.vy += 680 * dt; // Cartoon gravity
+          limb.rot += limb.vRot * dt;
+          limb.life -= dt;
+          if (limb.life <= 0) {
+            state.severedLimbs.splice(i, 1);
+          }
+        }
+
+        // Update Ink/Smoke Particles
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+          const pt = state.particles[i];
+          pt.x += pt.vx * dt;
+          pt.y += pt.vy * dt;
+          pt.vy += 240 * dt;
+          pt.life -= dt;
+          if (pt.life <= 0) {
+            state.particles.splice(i, 1);
+          }
+        }
+
+        // Update Floating Score Popups
+        for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+          const ft = state.floatingTexts[i];
+          ft.y += ft.vy * dt;
+          ft.life -= dt;
+          if (ft.life <= 0) {
+            state.floatingTexts.splice(i, 1);
+          }
+        }
+
+        updateHUD();
+      }
+
+      // =========================================================================
+      // 10. VINTAGE 1930s RUBBER-HOSE CANVAS RENDERING
+      // =========================================================================
+      function drawBackground() {
+        const w = state.width;
+        const h = state.height;
+        const horizonY = h * 0.37;
+
+        // Warm aged sepia sky gradient
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
+        skyGrad.addColorStop(0, '#cfc1a5');
+        skyGrad.addColorStop(1, '#ede2cc');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, w, horizonY);
+
+        // Vintage crescent moon with classic cartoon face
+        const moonX = w * 0.76;
+        const moonY = h * 0.14;
+        ctx.save();
+        ctx.fillStyle = '#fff9eb';
+        ctx.strokeStyle = '#14100c';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, 28, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        // Pie-cut eye on moon
+        ctx.fillStyle = '#14100c';
+        ctx.beginPath();
+        ctx.arc(moonX - 7, moonY - 4, 4, 0.2, Math.PI * 1.8);
+        ctx.lineTo(moonX - 7, moonY - 4);
+        ctx.fill();
+        ctx.restore();
+
+        // Perspective Cobblestone Street
+        const groundGrad = ctx.createLinearGradient(0, horizonY, 0, h);
+        groundGrad.addColorStop(0, '#96866e');
+        groundGrad.addColorStop(1, '#5c4e3c');
+        ctx.fillStyle = groundGrad;
+        ctx.fillRect(0, horizonY, w, h - horizonY);
+
+        // Street converging ink lines
+        ctx.strokeStyle = '#14100c';
+        ctx.lineWidth = 2.5;
+        const vanishX = w * 0.5;
+        [-0.48, -0.22, 0.22, 0.48].forEach(offset => {
+          ctx.beginPath();
+          ctx.moveTo(vanishX + offset * w * 0.24, horizonY);
+          ctx.lineTo(vanishX + offset * w * 1.35, h);
+          ctx.stroke();
+        });
+
+        // Horizontal cobblestone perspective joints
+        for (let i = 1; i <= 7; i++) {
+          const t = Math.pow(i / 8, 1.5);
+          const rowY = horizonY + t * (h - horizonY);
+          ctx.strokeStyle = 'rgba(20, 16, 12, 0.32)';
+          ctx.lineWidth = 1.5 + t * 1.5;
+          ctx.beginPath();
+          ctx.moveTo(0, rowY);
+          ctx.lineTo(w, rowY);
+          ctx.stroke();
+        }
+
+        // Left & Right 1930s Tenement Buildings
+        drawBuildingSide(true, w, h, horizonY);
+        drawBuildingSide(false, w, h, horizonY);
+      }
+
+      function drawBuildingSide(isLeft, w, h, horizonY) {
+        const sign = isLeft ? 1 : -1;
+        const edgeX = isLeft ? 0 : w;
+        const innerX = isLeft ? w * 0.28 : w * 0.72;
+
+        ctx.fillStyle = isLeft ? '#786852' : '#6e5e49';
+        ctx.strokeStyle = '#14100c';
+        ctx.lineWidth = 3.5;
+
+        ctx.beginPath();
+        ctx.moveTo(edgeX, 0);
+        ctx.lineTo(innerX, horizonY * 0.42);
+        ctx.lineTo(innerX, horizonY + 12);
+        ctx.lineTo(edgeX, h * 0.85);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Crooked cartoon windows
+        for (let row = 0; row < 2; row++) {
+          for (let col = 0; col < 2; col++) {
+            const wx = edgeX + sign * (24 + col * (w * 0.1));
+            const wy = h * 0.14 + row * (h * 0.16) + col * 14;
+            const ww = Math.min(34, w * 0.065);
+            const wh = 44;
+
+            ctx.fillStyle = (row + col) % 2 === 0 ? '#e6c98a' : '#2a221a';
+            ctx.beginPath();
+            ctx.moveTo(wx, wy);
+            ctx.lineTo(wx + sign * ww, wy + 5);
+            ctx.lineTo(wx + sign * ww, wy + wh + 5);
+            ctx.lineTo(wx, wy + wh);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
+        }
+      }
+
+      function drawZombie(z) {
+        if (!z.hitboxes) return;
+        const hb = z.hitboxes;
+        const s = hb.scale;
+
+        ctx.save();
+        if (!z.alive) {
+          ctx.globalAlpha = Math.max(0, z.deathTimer / 0.85);
+        }
+
+        // Ground shadow
+        ctx.fillStyle = 'rgba(20, 16, 12, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(hb.screenX, hb.footY, 34 * s, 9 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#14100c';
+        ctx.lineWidth = Math.max(2, 3.2 * s);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // 1. RUBBER-HOSE LEGS (if attached)
+        if (z.hasLegs) {
+          const stride = Math.sin(z.walkPhase) * 14 * s;
+          [-1, 1].forEach((side, idx) => {
+            const hipX = hb.screenX + side * 12 * s;
+            const footX = hipX + (idx === 0 ? stride : -stride) * 0.6;
+            const kneeX = (hipX + footX) * 0.5 + side * 6 * s;
+            const kneeY = (hb.hipY + hb.footY) * 0.5;
+
+            // Rubber hose leg curve
+            ctx.beginPath();
+            ctx.moveTo(hipX, hb.hipY);
+            ctx.quadraticCurveTo(kneeX, kneeY, footX, hb.footY - 6 * s);
+            ctx.stroke();
+
+            // Oversized 1930s cartoon shoe
+            ctx.fillStyle = '#241d17';
+            ctx.beginPath();
+            ctx.ellipse(footX + side * 5 * s, hb.footY - 4 * s, 14 * s, 7 * s, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          });
+        } else {
+          // Tattered ink stump lines for crawler
+          ctx.fillStyle = '#14100c';
+          ctx.beginPath();
+          ctx.ellipse(hb.screenX, hb.hipY + 2 * s, 22 * s, 7 * s, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 2. TORSO (Bean-shaped rubber-hose body)
+        const torsoW = 46 * s * z.cfg.scaleW;
+        const torsoH = 60 * s * z.cfg.scaleH;
+        ctx.fillStyle = z.cfg.coatColor;
+        ctx.beginPath();
+        ctx.roundRect(hb.screenX - torsoW * 0.5 + hb.sway * 0.4, hb.shoulderY, torsoW, torsoH, 16 * s);
+        ctx.fill();
+        ctx.stroke();
+
+        // Vintage shirt front & buttons
+        ctx.fillStyle = '#ede2cc';
+        ctx.beginPath();
+        ctx.moveTo(hb.screenX - 8 * s + hb.sway * 0.5, hb.shoulderY + 4 * s);
+        ctx.lineTo(hb.screenX + 8 * s + hb.sway * 0.5, hb.shoulderY + 4 * s);
+        ctx.lineTo(hb.screenX + hb.sway * 0.4, hb.shoulderY + torsoH * 0.65);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // 3. RUBBER-HOSE ARMS (Left & Right modular limbs)
+        const armSwing = Math.cos(z.walkPhase) * 14 * s;
+        const attackLift = z.attackWindup * 26 * s;
+
+        if (z.hasLeftArm) {
+          drawRubberArm(
+            hb.screenX - torsoW * 0.48 + hb.sway * 0.5,
+            hb.shoulderY + 10 * s,
+            hb.screenX - torsoW * 0.85 - 10 * s,
+            hb.shoulderY + 42 * s + armSwing - attackLift,
+            s,
+            z.attackWindup > 0.4
+          );
+        } else {
+          // Severed left shoulder ink puff
+          drawStumpMark(hb.screenX - torsoW * 0.48 + hb.sway * 0.5, hb.shoulderY + 12 * s, s);
+        }
+
+        if (z.hasRightArm) {
+          drawRubberArm(
+            hb.screenX + torsoW * 0.48 + hb.sway * 0.5,
+            hb.shoulderY + 10 * s,
+            hb.screenX + torsoW * 0.85 + 10 * s,
+            hb.shoulderY + 42 * s - armSwing - attackLift,
+            s,
+            z.attackWindup > 0.4
+          );
+        } else {
+          drawStumpMark(hb.screenX + torsoW * 0.48 + hb.sway * 0.5, hb.shoulderY + 12 * s, s);
+        }
+
+        // 4. HEAD & PIE-CUT CARTOON FACE (if attached)
+        if (z.hasHead) {
+          const hx = hb.head.x;
+          const hy = hb.head.y;
+          const hr = 24 * s;
+
+          // Skull / Head circle
+          ctx.fillStyle = z.cfg.skinColor;
+          ctx.beginPath();
+          ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Classic 1930s Pie-Cut Eyes
+          [-1, 1].forEach(side => {
+            const ex = hx + side * 8 * s;
+            const ey = hy - 3 * s;
+            ctx.fillStyle = '#fff9eb';
+            ctx.beginPath();
+            ctx.ellipse(ex, ey, 5.5 * s, 7.5 * s, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Pie-cut pupil
+            ctx.fillStyle = '#14100c';
+            ctx.beginPath();
+            ctx.arc(ex + side * 1.2 * s, ey, 3.2 * s, 0.35, Math.PI * 1.75);
+            ctx.lineTo(ex + side * 1.2 * s, ey);
+            ctx.fill();
+          });
+
+          // Crooked stitched zombie grin
+          ctx.beginPath();
+          ctx.arc(hx, hy + 7 * s, 9 * s, 0.15 * Math.PI, 0.85 * Math.PI);
+          ctx.stroke();
+
+          // Vintage Hat
+          if (z.cfg.hat === 'tophat') {
+            ctx.fillStyle = '#1d1712';
+            ctx.fillRect(hx - 15 * s, hy - hr - 16 * s, 30 * s, 18 * s);
+            ctx.strokeRect(hx - 15 * s, hy - hr - 16 * s, 30 * s, 18 * s);
+            ctx.beginPath();
+            ctx.ellipse(hx, hy - hr + 2 * s, 24 * s, 5 * s, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          } else if (z.cfg.hat === 'cloche') {
+            ctx.fillStyle = '#b5332a';
+            ctx.beginPath();
+            ctx.arc(hx, hy - hr * 0.45, hr * 1.02, Math.PI, 0);
+            ctx.fill();
+            ctx.stroke();
+          } else if (z.cfg.hat === 'boater') {
+            ctx.fillStyle = '#e5cf9b';
+            ctx.fillRect(hx - 16 * s, hy - hr - 8 * s, 32 * s, 10 * s);
+            ctx.strokeRect(hx - 16 * s, hy - hr - 8 * s, 32 * s, 10 * s);
+            ctx.beginPath();
+            ctx.ellipse(hx, hy - hr + 2 * s, 25 * s, 5 * s, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          }
+
+          // Attack telegraph exclamation mark when winding up melee strike
+          if (z.attackWindup > 0.35) {
+            ctx.fillStyle = '#b5332a';
+            ctx.font = `900 ${Math.round(28 * s)}px "Cinzel Decorative", serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText('!', hx, hy - hr - 22 * s);
+          }
+        }
+
+        ctx.restore();
+      }
+
+      function drawRubberArm(sx, sy, hx, hy, s, isAttacking) {
+        const elbowX = (sx + hx) * 0.5 + (hx > sx ? 10 * s : -10 * s);
+        const elbowY = (sy + hy) * 0.5 + 8 * s;
+
+        ctx.strokeStyle = '#14100c';
+        ctx.lineWidth = Math.max(3, 5.5 * s);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.quadraticCurveTo(elbowX, elbowY, hx, hy);
+        ctx.stroke();
+
+        // White 3-fingered Mickey-style cartoon glove
+        ctx.fillStyle = isAttacking ? '#e05246' : '#fff9eb';
+        ctx.lineWidth = Math.max(2, 2.5 * s);
+        ctx.beginPath();
+        ctx.arc(hx, hy, 8.5 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      function drawStumpMark(x, y, s) {
+        ctx.fillStyle = '#b5332a';
+        ctx.beginPath();
+        ctx.arc(x, y, 6 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      function drawSeveredLimbs() {
+        state.severedLimbs.forEach(limb => {
+          ctx.save();
+          ctx.translate(limb.x, limb.y);
+          ctx.rotate(limb.rot);
+          ctx.globalAlpha = Math.min(1, limb.life * 1.4);
+          ctx.strokeStyle = '#14100c';
+          ctx.lineWidth = 3;
+
+          if (limb.limbType === 'HEAD') {
+            ctx.fillStyle = limb.skinColor;
+            ctx.beginPath();
+            ctx.arc(0, 0, 20 * limb.scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // Cartoon X-eyes on flying head!
+            ctx.beginPath();
+            [-7, 7].forEach(ox => {
+              ctx.moveTo((ox - 3) * limb.scale, -5 * limb.scale);
+              ctx.lineTo((ox + 3) * limb.scale, 1 * limb.scale);
+              ctx.moveTo((ox + 3) * limb.scale, -5 * limb.scale);
+              ctx.lineTo((ox - 3) * limb.scale, 1 * limb.scale);
+            });
+            ctx.stroke();
+          } else {
+            // Flying rubber-hose limb + glove/shoe
+            ctx.beginPath();
+            ctx.moveTo(-14 * limb.scale, 0);
+            ctx.quadraticCurveTo(0, -8 * limb.scale, 14 * limb.scale, 0);
+            ctx.stroke();
+
+            ctx.fillStyle = limb.limbType === 'LEG' ? '#241d17' : '#fff9eb';
+            ctx.beginPath();
+            ctx.arc(14 * limb.scale, 0, 8 * limb.scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          }
+          ctx.restore();
+        });
+      }
+
+      function drawProjectiles() {
+        state.projectiles.forEach(p => {
+          ctx.save();
+          ctx.translate(p.screenX, p.screenY);
+          ctx.rotate(p.rot);
+          ctx.fillStyle = '#fff9eb';
+          ctx.strokeStyle = '#14100c';
+          ctx.lineWidth = 3;
+
+          // Spinning cartoon bone projectile
+          ctx.fillRect(-p.radius * 0.9, -p.radius * 0.28, p.radius * 1.8, p.radius * 0.56);
+          ctx.strokeRect(-p.radius * 0.9, -p.radius * 0.28, p.radius * 1.8, p.radius * 0.56);
+          [-p.radius * 0.9, p.radius * 0.9].forEach(bx => {
+            ctx.beginPath();
+            ctx.arc(bx, -p.radius * 0.28, p.radius * 0.34, 0, Math.PI * 2);
+            ctx.arc(bx, p.radius * 0.28, p.radius * 0.34, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          });
+          ctx.restore();
+        });
+      }
+
+      function drawBarricadeAndWeapon() {
+        const w = state.width;
+        const h = state.height;
+
+        // Wooden crate / sandbag barricade rises smoothly when player ducks into cover
+        const wallHeight = h * (0.11 + state.coverLerp * 0.54);
+        const wallY = h - wallHeight;
+
+        ctx.save();
+        ctx.fillStyle = '#5c442c';
+        ctx.strokeStyle = '#14100c';
+        ctx.lineWidth = 4;
+
+        // Main wooden barricade plank wall
+        ctx.fillRect(-6, wallY, w + 12, wallHeight + 10);
+        ctx.strokeRect(-6, wallY, w + 12, wallHeight + 10);
+
+        // Wood plank lines & nail heads
+        ctx.strokeStyle = 'rgba(20, 16, 12, 0.55)';
+        ctx.lineWidth = 2;
+        for (let py = wallY + 26; py < h; py += 28) {
+          ctx.beginPath();
+          ctx.moveTo(0, py);
+          ctx.lineTo(w, py);
+          ctx.stroke();
+        }
+
+        // First-person cartoon gloved hand & snub-nose revolver
+        const gunBaseX = w * 0.5 + (state.isADS ? (state.aimX - w * 0.5) * 0.22 : 0);
+        const gunBaseY = h - 22 + state.coverLerp * 140 - state.muzzleFlash * 160;
+
+        // Muzzle flash star
+        if (state.muzzleFlash > 0) {
+          ctx.fillStyle = '#fff6c2';
+          ctx.strokeStyle = '#14100c';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          for (let i = 0; i < 10; i++) {
+            const ang = (i / 10) * Math.PI * 2;
+            const rad = i % 2 === 0 ? 44 : 18;
+            const fx = gunBaseX + Math.cos(ang) * rad;
+            const fy = gunBaseY - 68 + Math.sin(ang) * rad;
+            if (i === 0) ctx.moveTo(fx, fy);
+            else ctx.lineTo(fx, fy);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // Revolver barrel & cylinder
+        ctx.fillStyle = '#2b2623';
+        ctx.strokeStyle = '#14100c';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.roundRect(gunBaseX - 11, gunBaseY - 66, 22, 46, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        // Gloved cartoon hand gripping revolver
+        ctx.fillStyle = '#fff9eb';
+        ctx.beginPath();
+        ctx.arc(gunBaseX, gunBaseY - 14, 24, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function drawReticleAndFX() {
+        // Bullet tracer line on recent shot
+        if (state.lastShotLine) {
+          ctx.save();
+          ctx.strokeStyle = `rgba(255, 246, 194, ${state.lastShotLine.life * 6})`;
+          ctx.lineWidth = 3;
+          ctx.setLineDash([8, 6]);
+          ctx.beginPath();
+          ctx.moveTo(state.width * 0.5, state.height - 65);
+          ctx.lineTo(state.lastShotLine.x, state.lastShotLine.y);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // ADS Precision Crosshair Reticle (when holding & dragging finger/mouse)
+        if (state.pointerActive && state.isADS && !state.isCovering) {
+          const ax = state.aimX;
+          const ay = state.aimY;
+
+          ctx.save();
+
+          // On touchscreens, draw a subtle brass tether from thumb touch point to the offset reticle above it
+          if (state.isTouchInput && Math.hypot(ax - state.pointerX, ay - state.pointerY) > 12) {
+            ctx.strokeStyle = 'rgba(20, 16, 12, 0.45)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(state.pointerX, state.pointerY);
+            ctx.lineTo(ax, ay);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Small thumb anchor ring
+            ctx.beginPath();
+            ctx.arc(state.pointerX, state.pointerY, 12, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          // Check if reticle is currently locked onto a zombie's head!
+          const onHead = state.zombies.some(z =>
+            z.alive && z.hasHead && z.hitboxes &&
+            Math.hypot(ax - z.hitboxes.head.x, ay - z.hitboxes.head.y) <= z.hitboxes.head.r
+          );
+
+          const ringColor = onHead ? '#b5332a' : '#d4a345';
+          const radius = onHead ? 26 : 30;
+
+          // Outer dark ink halo
+          ctx.strokeStyle = '#14100c';
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.arc(ax, ay, radius, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Inner brass/crimson crosshair ring
+          ctx.strokeStyle = ringColor;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(ax, ay, radius, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Crosshair ticks
+          ctx.beginPath();
+          ctx.moveTo(ax - radius - 8, ay);
+          ctx.lineTo(ax - 8, ay);
+          ctx.moveTo(ax + 8, ay);
+          ctx.lineTo(ax + radius + 8, ay);
+          ctx.moveTo(ax, ay - radius - 8);
+          ctx.lineTo(ax, ay - 8);
+          ctx.moveTo(ax, ay + 8);
+          ctx.lineTo(ax, ay + radius + 8);
+          ctx.stroke();
+
+          // Center dot
+          ctx.fillStyle = onHead ? '#b5332a' : '#fff9eb';
+          ctx.beginPath();
+          ctx.arc(ax, ay, 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          if (onHead) {
+            ctx.fillStyle = '#b5332a';
+            ctx.font = '700 12px "Courier Prime", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('HEADSHOT LOCK!', ax, ay - radius - 12);
+          }
+
+          ctx.restore();
+        }
+
+        // Ink & Smoke Particles
+        state.particles.forEach(pt => {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
+          ctx.fillStyle = pt.color;
+          ctx.strokeStyle = '#14100c';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        });
+
+        // Floating Vintage Score Popups
+        state.floatingTexts.forEach(ft => {
+          ctx.save();
+          ctx.globalAlpha = Math.min(1, ft.life * 1.5);
+          ctx.font = `900 ${ft.size}px "Cinzel Decorative", serif`;
+          ctx.textAlign = 'center';
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = '#f4ebd9';
+          ctx.strokeText(ft.text, ft.x, ft.y);
+          ctx.fillStyle = ft.color;
+          ctx.fillText(ft.text, ft.x, ft.y);
+          ctx.restore();
+        });
+
+        // Wave Announcement Title Card
+        if (state.waveBannerTimer > 0) {
+          ctx.save();
+          const alpha = Math.min(1, state.waveBannerTimer * 1.5);
+          ctx.globalAlpha = alpha;
+          ctx.font = '900 38px "Cinzel Decorative", serif';
+          ctx.textAlign = 'center';
+          ctx.lineWidth = 6;
+          ctx.strokeStyle = '#14100c';
+          ctx.strokeText(state.waveBannerText, state.width * 0.5, state.height * 0.28);
+          ctx.fillStyle = '#f4ebd9';
+          ctx.fillText(state.waveBannerText, state.width * 0.5, state.height * 0.28);
+          ctx.restore();
+        }
+
+        // Red/Sepia Damage Vignette Flash
+        if (state.damageFlash > 0) {
+          ctx.fillStyle = `rgba(181, 51, 42, ${state.damageFlash * 0.65})`;
+          ctx.fillRect(0, 0, state.width, state.height);
+        }
+
+        // 1930s Projector Flicker & Vertical Film Scratches
+        const flicker = (Math.sin(state.time * 47) + 1) * 0.015;
+        ctx.fillStyle = `rgba(20, 16, 12, ${flicker})`;
+        ctx.fillRect(0, 0, state.width, state.height);
+
+        if (Math.random() < 0.22) {
+          const sx = Math.random() * state.width;
+          ctx.strokeStyle = 'rgba(244, 235, 217, 0.14)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(sx, 0);
+          ctx.lineTo(sx + (Math.random() - 0.5) * 6, state.height);
+          ctx.stroke();
+        }
+      }
+
+      function render() {
+        ctx.save();
+
+        // Screen shake transform
+        if (state.screenShake > 0) {
+          const dx = (Math.random() - 0.5) * state.screenShake * 1.6;
+          const dy = (Math.random() - 0.5) * state.screenShake * 1.6;
+          ctx.translate(dx, dy);
+        }
+
+        drawBackground();
+
+        // Render zombies sorted back-to-front (painter's algorithm)
+        const sortedBackToFront = [...state.zombies].sort((a, b) => a.z - b.z);
+        sortedBackToFront.forEach(drawZombie);
+
+        drawSeveredLimbs();
+        drawProjectiles();
+        drawBarricadeAndWeapon();
+        drawReticleAndFX();
+
+        ctx.restore();
+      }
+
+      // =========================================================================
+      // 11. MAIN ANIMATION LOOP
+      // =========================================================================
+      function gameLoop(timestamp) {
+        if (!state.lastFrame) state.lastFrame = timestamp;
+        const dt = Math.min(0.05, (timestamp - state.lastFrame) / 1000);
+        state.lastFrame = timestamp;
+
+        update(dt);
+        render();
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      window.onload = () => {
+        resizeCanvas();
+        updateHUD();
+        requestAnimationFrame(gameLoop);
+      };
+    })();
+  </script>
+</body>
+</html>
