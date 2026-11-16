@@ -227,10 +227,20 @@ body {
 #end {
   position: absolute;
   z-index: 7;
-  inset: auto 0 0 0;
+  inset: 0;
+  display: grid;
+  grid-template-columns: max-content;
+  justify-content: center;
+  align-content: center;
   padding: 26px 20px 24px;
-  background: linear-gradient(transparent, #000d 35%);
+  background: #000a;
   text-align: center
+}
+
+#end h2,
+#end p {
+  grid-column: 1 / -1;
+  justify-self: center
 }
 
 #end h2 {
@@ -256,6 +266,7 @@ body {
 }
 
 #end button+button {
+  margin-top: 6px;
   background: #fff2;
   color: #fff
 }
