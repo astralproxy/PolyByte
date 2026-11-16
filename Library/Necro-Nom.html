@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- microfeed: {"title":"Necro-Nom","icon":"👻","description":"Guide the reaper through the crypt, collect every soul, and beat the clock.","tags":{"Puzzle":0.6,"Spatial":0.8,"Reflex":0.4}} -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -419,6 +420,9 @@
         const COLS = MAZE_BLUEPRINT[0].length;
         const GAME_DURATION = 30.0; // seconds
         const REAPER_SPEED = 6.2;   // tiles per second (allows full clear in ~14-18s with good routing)
+        const hostCanvas = document.getElementById('c');
+        const hostMode = !!hostCanvas;
+        window.GameMeta = {title: 'Necro-Nom', gameLength: GAME_DURATION * 1000};
 
         // Direction vectors
         const DIRS = {
@@ -435,6 +439,15 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const canvasWrapper = document.getElementById('canvas-wrapper');
+
+        if (hostMode) {
+            document.documentElement.style.cssText = 'width:100%;height:100%;overflow:hidden';
+            document.body.style.cssText = 'width:100%;height:100%;margin:0;overflow:hidden;background:transparent';
+            for (const child of document.body.children) {
+                if (child !== hostCanvas) child.style.display = 'none';
+            }
+            hostCanvas.style.cssText = 'display:block;width:100%;height:100%;border:0;border-radius:0;box-shadow:none';
+        }
 
         const hudTimer = document.getElementById('hud-timer');
         const hudSouls = document.getElementById('hud-souls');
@@ -522,21 +535,25 @@
         }
 
         function triggerWin() {
+            if (gameState !== 'PLAYING') return;
             gameState = 'WIN';
             sfx.playWin();
             const clearTime = Math.max(0, GAME_DURATION - timeRemaining);
             winTimeLeftEl.textContent = `${timeRemaining.toFixed(1)}s`;
             winClearTimeEl.textContent = `${clearTime.toFixed(1)}s`;
             overlayWin.classList.remove('hidden');
+            if (hostMode && window.Platform && window.Platform.endGame) window.Platform.endGame();
         }
 
         function triggerLose() {
+            if (gameState !== 'PLAYING') return;
             gameState = 'LOSE';
             timeRemaining = 0;
             updateHUD();
             sfx.playLose();
             loseSoulsCountEl.textContent = `${collectedSouls} / ${totalSouls}`;
             overlayLose.classList.remove('hidden');
+            if (hostMode && window.Platform && window.Platform.endGame) window.Platform.endGame();
         }
 
         function updateHUD() {
@@ -555,14 +572,14 @@
         // ==========================================
         function resizeCanvas() {
             const rect = canvasWrapper.getBoundingClientRect();
-            const availW = rect.width - 8;
-            const availH = rect.height - 8;
+            const availW = (hostMode ? 360 : rect.width) - 8;
+            const availH = (hostMode ? 640 : rect.height) - 8;
 
             // Compute largest integer tile size that fits cleanly inside wrapper
             tileSize = Math.floor(Math.min(availW / COLS, availH / ROWS));
             tileSize = Math.max(16, tileSize);
 
-            const dpr = window.devicePixelRatio || 1;
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
             const logicalW = tileSize * COLS;
             const logicalH = tileSize * ROWS;
 
@@ -575,6 +592,7 @@
         }
 
         window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
         // ==========================================
         // 6. INPUT HANDLING (Touch Swipes & Keyboard)
@@ -1000,13 +1018,8 @@
             ctx.globalAlpha = 1.0;
         }
 
-        // ==========================================
-        // 10. MAIN GAME LOOP
-        // ==========================================
-        function gameLoop(timestamp) {
-            if (!lastTimestamp) lastTimestamp = timestamp;
-            const dt = Math.min(0.05, (timestamp - lastTimestamp) / 1000); // Cap dt for tab-switch safety
-            lastTimestamp = timestamp;
+        function updateGame(dt) {
+            dt = Math.max(0, Math.min(0.05, Number(dt) || 0));
             animTime += dt;
 
             if (gameState === 'PLAYING') {
@@ -1018,27 +1031,92 @@
                     updateHUD();
                 }
             } else {
-                // Keep subtle idle floating animations alive on start/end screens
                 player.bobPhase += dt * 4;
             }
 
             updateParticles(dt);
+        }
 
-            // Render frame
+        function renderAll(target) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawMaze();
             drawSouls();
             drawReaper();
             drawParticles();
 
+            if (target && target !== ctx) {
+                const width = target.canvas.width;
+                const height = target.canvas.height;
+                const boardWidth = COLS * tileSize;
+                const boardHeight = ROWS * tileSize;
+                const scale = Math.min(width / boardWidth, height / boardHeight);
+                target.clearRect(0, 0, width, height);
+                target.fillStyle = '#0b0914';
+                target.fillRect(0, 0, width, height);
+                target.drawImage(
+                    canvas, 0, 0, canvas.width, canvas.height,
+                    (width - boardWidth * scale) / 2,
+                    (height - boardHeight * scale) / 2,
+                    boardWidth * scale, boardHeight * scale
+                );
+            }
+        }
+
+        function gameLoop(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const dt = Math.min(0.05, (timestamp - lastTimestamp) / 1000);
+            lastTimestamp = timestamp;
+            updateGame(dt);
+            renderAll(ctx);
             requestAnimationFrame(gameLoop);
         }
+
+        window.initGame = function () {
+            startGame();
+        };
+        window.updateGame = updateGame;
+        window.handleInput = function (event) {
+            if (!event || gameState !== 'PLAYING') return;
+            if (event.type === 'DIRECTIONAL_VECTOR') {
+                if (!event.active) {
+                    player.dir = DIRS.NONE;
+                    player.nextDir = DIRS.NONE;
+                    return;
+                }
+                const x = Number(event.x) || 0;
+                const y = Number(event.y) || 0;
+                if (Math.abs(x) > Math.abs(y)) queueDirection(x > 0 ? DIRS.RIGHT : DIRS.LEFT);
+                else if (y !== 0) queueDirection(y > 0 ? DIRS.DOWN : DIRS.UP);
+            } else if (event.type === 'ACTION_PRIMARY') {
+                const x = (typeof event.x === 'number' ? event.x : 0.5) - 0.5;
+                const y = (typeof event.y === 'number' ? event.y : 0.5) - 0.5;
+                if (Math.abs(x) > Math.abs(y)) queueDirection(x > 0 ? DIRS.RIGHT : DIRS.LEFT);
+                else if (y !== 0) queueDirection(y > 0 ? DIRS.DOWN : DIRS.UP);
+            } else if (event.type === 'ACTION_SECONDARY') {
+                player.dir = DIRS.NONE;
+                player.nextDir = DIRS.NONE;
+            }
+        };
+        window.getResult = function () {
+            return {
+                score: collectedSouls,
+                timeElapsed: GAME_DURATION - timeRemaining,
+                completionPercent: totalSouls ? collectedSouls / totalSouls * 100 : 0,
+                customData: {souls: collectedSouls, totalSouls: totalSouls, gameState: gameState}
+            };
+        };
+        window.renderAll = renderAll;
+        window.onEndGame = function () {
+            if (gameState === 'PLAYING') gameState = 'LOSE';
+        };
 
         // Start on window load
         window.onload = function () {
             resizeCanvas();
-            resetGame();
-            requestAnimationFrame(gameLoop);
+            if (!hostMode) {
+                resetGame();
+                requestAnimationFrame(gameLoop);
+            }
         };
     </script>
 </body>

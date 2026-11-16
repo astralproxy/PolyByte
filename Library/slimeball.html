@@ -1,4 +1,4 @@
-<!-- microfeed: {"title":"Slimeball 8-Bit Arcade","icon":"🏀","description":"8-bit arcade slime basketball game with precision physics and chiptune sound.","tags":{"Sports":1,"Precision":0.8,"Arcade":0.5}} -->
+<!-- microfeed: {"title":"Slimeball 8-Bit Arcade","icon":"🏀","description":"8-bit arcade slime basketball game with precision physics and chiptune sound.","tags":{"Sports":1,"Precision":0.8}} -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -55,7 +55,7 @@
     /* Top Control Bar (CRT & Sound Toggles) */
     #top-bar {
       width: 100%;
-      max-width: 360px;
+      max-width: 800px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -69,18 +69,17 @@
       color: #4ade80;
       text-shadow: 2px 2px 0 #14532d;
       letter-spacing: 1px;
-      font-size: 10px;
     }
 
     .util-buttons {
       display: flex;
-      gap: 6px;
+      gap: 8px;
     }
 
     .pixel-btn {
       font-family: 'Press Start 2P', monospace;
-      font-size: 8px;
-      padding: 4px 6px;
+      font-size: 9px;
+      padding: 6px 10px;
       background: #1e293b;
       color: #e2e8f0;
       border: 2px solid #475569;
@@ -101,13 +100,13 @@
       color: #ffffff;
     }
 
-    /* Screen Bezel (Host Canvas Container) */
+    /* Screen Bezel */
     #screen-container {
       position: relative;
-      width: 360px;
-      height: 640px;
-      max-width: 100%;
-      max-height: calc(100vh - 100px);
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 4 / 3;
+      max-height: calc(100vh - 145px);
       background: #000;
       border: 6px solid #334155;
       border-radius: 12px;
@@ -154,31 +153,122 @@
     #crt-overlay.hidden {
       opacity: 0;
     }
+
+    /* Touch / On-Screen Arcade Controls */
+    #touch-controls {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 8px 4px;
+      gap: 12px;
+      z-index: 20;
+    }
+
+    .dpad-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    .arcade-pad-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 14px;
+      min-width: 64px;
+      height: 54px;
+      padding: 0 16px;
+      background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+      color: #f8fafc;
+      border: 3px solid #64748b;
+      border-radius: 10px;
+      box-shadow: 0 5px 0 #0f172a, 0 7px 12px rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .arcade-pad-btn:active,
+    .arcade-pad-btn.pressed {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #0f172a;
+      background: #475569;
+      border-color: #94a3b8;
+    }
+
+    .jump-btn {
+      min-width: 110px;
+      background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+      border-color: #fca5a5;
+      box-shadow: 0 5px 0 #7f1d1d, 0 7px 12px rgba(0,0,0,0.5);
+      font-size: 12px;
+    }
+
+    .jump-btn:active,
+    .jump-btn.pressed {
+      background: #dc2626;
+      box-shadow: 0 1px 0 #7f1d1d;
+    }
+
+    @media (min-width: 820px) {
+      #touch-controls {
+        opacity: 0.85;
+      }
+      #touch-controls:hover {
+        opacity: 1;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .arcade-pad-btn {
+        min-width: 58px;
+        height: 50px;
+        font-size: 12px;
+      }
+      .jump-btn {
+        min-width: 96px;
+      }
+      #top-bar {
+        font-size: 8px;
+      }
+    }
   </style>
 </head>
 <body>
   <div id="arcade-wrapper">
     <!-- Top Utility Header -->
     <div id="top-bar">
-      <div class="arcade-title-badge">SLIMEBALL</div>
+      <div class="arcade-title-badge">SLIMEBALL '88</div>
       <div class="util-buttons">
         <button id="btn-crt" class="pixel-btn active" title="Toggle CRT Scanlines">CRT:ON</button>
         <button id="btn-mute" class="pixel-btn active" title="Toggle 8-Bit Audio">SFX:ON</button>
       </div>
     </div>
 
-    <!-- Main 360x640 CRT Monitor Canvas Container as required by Host -->
+    <!-- Main 4:3 Retro CRT Monitor -->
     <div id="screen-container">
-      <canvas id="c" width="360" height="640"></canvas>
+      <canvas id="gameCanvas" width="320" height="240"></canvas>
       <div id="crt-overlay"></div>
+    </div>
+
+    <!-- Tactile On-Screen Arcade Deck -->
+    <div id="touch-controls">
+      <div class="dpad-group">
+        <button id="btn-left" class="arcade-pad-btn" aria-label="Move Left">◀</button>
+        <button id="btn-right" class="arcade-pad-btn" aria-label="Move Right">▶</button>
+      </div>
+      <div class="hint-text" style="font-size: 8px; color: #64748b; text-align: center; display: none;" id="desktop-hint">
+        ARROWS / WASD + SPACE
+      </div>
+      <button id="btn-jump" class="arcade-pad-btn jump-btn" aria-label="Jump">JUMP</button>
     </div>
   </div>
 
   <script>
     /**
-     * SLIMEBALL - 8-BIT RETRO ARCADE GAME (PolyByte Library Standard)
+     * SLIMEBALL - 8-BIT RETRO ARCADE GAME
      * Pure procedural pixel-art renderer, custom 2D circle-dome & rim physics,
-     * Web Audio API chiptune synthesizer, and host SDK integration in a single self-contained file.
+     * and Web Audio API chiptune synthesizer in a single self-contained file.
      */
 
     // =========================================================================
@@ -227,50 +317,59 @@
         osc.stop(now + duration);
       }
 
+      // Squishy slime jump sound
       jump() {
         this.playTone(150, 440, 0.14, 'square', 0.10);
         this.playTone(110, 320, 0.14, 'triangle', 0.12);
       }
 
+      // Slime head bounce ("BOING!")
       slimeBounce(intensity = 1) {
         const base = 220 + Math.min(120, intensity * 40);
         this.playTone(base, base * 1.9, 0.12, 'triangle', 0.18);
         this.playTone(base * 0.75, base * 1.4, 0.10, 'square', 0.08);
       }
 
+      // Metallic rim clank
       rimHit() {
         this.playTone(580, 290, 0.07, 'square', 0.11);
         this.playTone(820, 410, 0.05, 'sawtooth', 0.07);
       }
 
+      // Backboard thud
       backboardHit() {
         this.playTone(180, 95, 0.08, 'triangle', 0.14);
       }
 
+      // Floor dribble bounce
       floorBounce(speed) {
         const vol = Math.min(0.14, Math.max(0.02, speed * 0.025));
         this.playTone(135, 70, 0.07, 'triangle', vol);
       }
 
+      // Classic 8-bit victory arpeggio on scoring a basket
       score(isSwish = false, combo = 1) {
         const pitchBoost = 1 + Math.min(0.35, (combo - 1) * 0.06);
         const notes = isSwish
-          ? [523.25, 659.25, 783.99, 1046.50, 1318.51]
-          : [523.25, 659.25, 783.99, 1046.50];
+          ? [523.25, 659.25, 783.99, 1046.50, 1318.51] // C5 E5 G5 C6 E6
+          : [523.25, 659.25, 783.99, 1046.50];          // C5 E5 G5 C6
 
         notes.forEach((freq, idx) => {
           this.playTone(freq * pitchBoost, freq * pitchBoost, 0.09, 'square', 0.12, idx * 0.065);
         });
       }
 
+      // Serve whistle / blip
       serve() {
         this.playTone(660, 880, 0.06, 'square', 0.07);
       }
 
+      // Countdown tick (last 5 seconds)
       tick(urgent = false) {
         this.playTone(urgent ? 880 : 440, urgent ? 880 : 440, 0.05, 'square', 0.08);
       }
 
+      // Game Over retro jingle
       gameOver() {
         const melody = [
           { f: 440, d: 0.14, t: 0.00 },
@@ -287,15 +386,15 @@
     const sfx = new RetroAudio();
 
     // =========================================================================
-    // 2. CANVAS & GAME CONSTANTS (360x640 VERTICAL PORTRAIT CANVAS)
+    // 2. CANVAS & GAME CONSTANTS (LOW-RES 320x240 8-BIT INTERNAL BUFFER)
     // =========================================================================
-    const canvas = document.getElementById('c');
+    const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    const WIDTH = 360;
-    const HEIGHT = 640;
-    const FLOOR_Y = 560;
-    const DEFAULT_GAME_LENGTH = 15000; // 15 seconds host session length
+    const WIDTH = 320;
+    const HEIGHT = 240;
+    const FLOOR_Y = 212;
+    const GAME_DURATION = 60; // 60-second arcade clock
 
     // 8-Bit NES/SNES Inspired Color Palette
     const PALETTE = {
@@ -329,29 +428,35 @@
     // 3. GAME STATE & ENTITIES
     // =========================================================================
     const STATE = {
+      TITLE: 0,
       PLAYING: 1,
       GAMEOVER: 2
     };
 
-    let gameState = STATE.PLAYING;
+    let gameState = STATE.TITLE;
     let score = 0;
+    let highScore = parseInt(localStorage.getItem('slimeball_highscore') || '0', 10);
     let basketsMade = 0;
     let combo = 0;
-    let timeElapsed = 0;
-    let gameDurationSec = DEFAULT_GAME_LENGTH / 1000;
-    let lastSecondInt = Math.ceil(gameDurationSec);
+    let timeLeft = GAME_DURATION;
+    let lastSecondInt = GAME_DURATION;
     let frameCount = 0;
     let screenShake = 0;
-    let gameParams = {};
-    let hasEnded = false;
+
+    // Input State
+    const keys = {
+      left: false,
+      right: false,
+      up: false
+    };
 
     // Slime Player Entity
     const slime = {
-      x: 180,
+      x: 92,
       y: FLOOR_Y,
       vx: 0,
       vy: 0,
-      baseRadius: 28,
+      baseRadius: 21,
       scaleX: 1,
       scaleY: 1,
       grounded: true,
@@ -361,11 +466,11 @@
 
     // Basketball Entity
     const ball = {
-      x: 180,
-      y: 180,
+      x: 105,
+      y: 70,
       vx: 0,
       vy: 0,
-      radius: 11,
+      radius: 9,
       rotation: 0,
       vRot: 0,
       active: true,
@@ -374,21 +479,21 @@
       touchedBackboard: false,
       trail: [],
       serveTimer: 0,
-      serveTargetX: 180
+      serveTargetX: 105
     };
 
-    // Basketball Hoop Entity (Mounted on the right wall facing left)
+    // Basketball Hoop Entity (Right side of court)
     const hoop = {
-      x: 300,          // Rim center X
-      y: 280,          // Rim Y height
-      targetY: 280,
-      rimRadius: 24,
-      rimThickness: 4,
-      boardX: 334,     // Front face of backboard
-      boardWidth: 8,
-      boardTop: 220,
-      boardBottom: 310,
-      netSwish: 0,
+      x: 264,          // Center X of the rim opening
+      y: 118,          // Current Y height of rim
+      targetY: 118,    // Target Y for smooth height transitions
+      rimRadius: 21,   // Wider half-width of hoop opening for easier scoring
+      rimThickness: 3,
+      boardX: 291,     // Front face of backboard
+      boardWidth: 6,
+      boardTop: 78,
+      boardBottom: 130,
+      netSwish: 0,     // Animation timer when ball passes through net
       netSway: 0
     };
 
@@ -399,7 +504,7 @@
     // =========================================================================
     // 4. PARTICLE & FLOATING TEXT HELPERS
     // =========================================================================
-    function spawnParticles(x, y, color, count = 8, speed = 2.5, gravity = 0.12) {
+    function spawnParticles(x, y, color, count = 8, speed = 2.2, gravity = 0.1) {
       for (let i = 0; i < count; i++) {
         const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6;
         const spd = speed * (0.5 + Math.random() * 0.8);
@@ -421,7 +526,7 @@
       floatingTexts.push({
         x,
         y,
-        vy: -0.85,
+        vy: -0.75,
         text,
         color,
         life: 48
@@ -431,12 +536,40 @@
     // =========================================================================
     // 5. GAME FLOW & RESET LOGIC
     // =========================================================================
-    function scheduleServe(xPos = 180, immediate = false) {
+    function startGame() {
+      sfx.init();
+      score = 0;
+      basketsMade = 0;
+      combo = 0;
+      timeLeft = GAME_DURATION;
+      lastSecondInt = GAME_DURATION;
+      particles = [];
+      floatingTexts = [];
+
+      // Reset Slime
+      slime.x = 92;
+      slime.y = FLOOR_Y;
+      slime.vx = 0;
+      slime.vy = 0;
+      slime.scaleX = 1;
+      slime.scaleY = 1;
+      slime.grounded = true;
+
+      // Reset Hoop to comfortable mid-height
+      hoop.y = 118;
+      hoop.targetY = 118;
+      hoop.netSwish = 0;
+
+      gameState = STATE.PLAYING;
+      scheduleServe(105, true);
+    }
+
+    function scheduleServe(xPos = 105, immediate = false) {
       ball.active = false;
-      ball.serveTimer = immediate ? 15 : 30;
-      ball.serveTargetX = Math.max(70, Math.min(240, xPos));
+      ball.serveTimer = immediate ? 10 : 26;
+      ball.serveTargetX = Math.max(55, Math.min(185, xPos));
       ball.x = ball.serveTargetX;
-      ball.y = 120;
+      ball.y = 44;
       ball.vx = 0;
       ball.vy = 0;
       ball.trail = [];
@@ -445,9 +578,9 @@
     function releaseBall() {
       ball.active = true;
       ball.x = ball.serveTargetX;
-      ball.y = 124;
-      ball.vx = (Math.random() - 0.5) * 0.4;
-      ball.vy = 0.3;
+      ball.y = 46;
+      ball.vx = (Math.random() - 0.5) * 0.25;
+      ball.vy = 0.25;
       ball.vRot = (Math.random() - 0.5) * 0.04;
       ball.scoredThisShot = false;
       ball.touchedRim = false;
@@ -457,68 +590,48 @@
     }
 
     // =========================================================================
-    // 6. REQUIRED HOST API FUNCTIONS
+    // 6. PHYSICS & COLLISION ENGINE
     // =========================================================================
-    window.GameMeta = {
-      title: 'Slimeball 8-Bit Arcade',
-      gameLength: DEFAULT_GAME_LENGTH
-    };
+    function resolveCircleCollision(cx, cy, cr, restitution = 0.85, isRim = false) {
+      const dx = ball.x - cx;
+      const dy = ball.y - cy;
+      const dist = Math.hypot(dx, dy);
+      const minDist = ball.radius + cr;
 
-    function initGame(params) {
-      gameParams = params || {};
-      score = 0;
-      basketsMade = 0;
-      combo = 0;
-      timeElapsed = 0;
-      hasEnded = false;
-      gameState = STATE.PLAYING;
-      particles = [];
-      floatingTexts = [];
+      if (dist < minDist && dist > 0.0001) {
+        const nx = dx / dist;
+        const ny = dy / dist;
 
-      slime.x = 180;
-      slime.y = FLOOR_Y;
-      slime.vx = 0;
-      slime.vy = 0;
-      slime.grounded = true;
+        // Separate ball from obstacle
+        const overlap = minDist - dist;
+        ball.x += nx * overlap;
+        ball.y += ny * overlap;
 
-      hoop.y = 280;
-      hoop.targetY = 280;
-      hoop.netSwish = 0;
+        // Relative velocity along normal
+        const vn = ball.vx * nx + ball.vy * ny;
+        if (vn < 0) {
+          ball.vx -= (1 + restitution) * vn * nx;
+          ball.vy -= (1 + restitution) * vn * ny;
+          ball.vRot = ball.vx * 0.05;
 
-      scheduleServe(180, true);
+          if (isRim) {
+            ball.touchedRim = true;
+            sfx.rimHit();
+            spawnParticles(cx, cy, '#fca5a5', 5, 1.4, 0.08);
+          }
+          return true;
+        }
+      }
+      return false;
     }
 
     function updateGame(dt) {
-      if (gameState !== STATE.PLAYING) return;
-
       frameCount++;
-      timeElapsed += dt;
 
-      if (timeElapsed >= gameDurationSec) {
-        timeElapsed = gameDurationSec;
-        gameState = STATE.GAMEOVER;
-        if (!hasEnded) {
-          hasEnded = true;
-          sfx.gameOver();
-          if (window.Platform && typeof window.Platform.endGame === 'function') {
-            window.Platform.endGame();
-          }
-        }
-        return;
-      }
-
-      const remainingSec = Math.ceil(gameDurationSec - timeElapsed);
-      if (remainingSec < lastSecondInt && remainingSec > 0) {
-        lastSecondInt = remainingSec;
-        if (remainingSec <= 5) {
-          sfx.tick(true);
-        } else if (remainingSec <= 10) {
-          sfx.tick(false);
-        }
-      }
-
+      // Decay screen shake
       if (screenShake > 0) screenShake--;
 
+      // Update Particles
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
@@ -528,6 +641,7 @@
         if (p.life <= 0) particles.splice(i, 1);
       }
 
+      // Update Floating Texts
       for (let i = floatingTexts.length - 1; i >= 0; i--) {
         const ft = floatingTexts[i];
         ft.y += ft.vy;
@@ -535,18 +649,107 @@
         if (ft.life <= 0) floatingTexts.splice(i, 1);
       }
 
+      // Title Screen Attract Animation (Slime hops happily)
+      if (gameState === STATE.TITLE) {
+        slime.x = 120 + Math.sin(frameCount * 0.04) * 35;
+        slime.facing = Math.cos(frameCount * 0.04) >= 0 ? 1 : -1;
+        if (slime.grounded && frameCount % 75 === 0) {
+          slime.vy = -4.2;
+          slime.grounded = false;
+          slime.scaleX = 0.78;
+          slime.scaleY = 1.24;
+        }
+        slime.vy += 0.25;
+        slime.y += slime.vy;
+        if (slime.y >= FLOOR_Y) {
+          if (!slime.grounded) {
+            slime.scaleX = 1.25;
+            slime.scaleY = 0.76;
+          }
+          slime.y = FLOOR_Y;
+          slime.vy = 0;
+          slime.grounded = true;
+        }
+        slime.scaleX += (1 - slime.scaleX) * 0.18;
+        slime.scaleY += (1 - slime.scaleY) * 0.18;
+        return;
+      }
+
+      if (gameState !== STATE.PLAYING) return;
+
+      // -----------------------------------------------------------------------
+      // A. Arcade Clock Countdown
+      // -----------------------------------------------------------------------
+      timeLeft -= dt;
+      const ceilTime = Math.ceil(timeLeft);
+      if (ceilTime < lastSecondInt && ceilTime > 0) {
+        lastSecondInt = ceilTime;
+        if (ceilTime <= 5) {
+          sfx.tick(true);
+        } else if (ceilTime <= 10) {
+          sfx.tick(false);
+        }
+      }
+
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        gameState = STATE.GAMEOVER;
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('slimeball_highscore', String(highScore));
+        }
+        sfx.gameOver();
+        return;
+      }
+
+      // -----------------------------------------------------------------------
+      // B. Hoop Smooth Vertical Adjustment & Net Animation
+      // -----------------------------------------------------------------------
       hoop.y += (hoop.targetY - hoop.y) * 0.08;
-      hoop.boardTop = Math.round(hoop.y - 45);
-      hoop.boardBottom = Math.round(hoop.y + 15);
+      hoop.boardTop = Math.round(hoop.y - 40);
+      hoop.boardBottom = Math.round(hoop.y + 12);
 
-      if (hoop.netSwish > 0) hoop.netSwish--;
+      if (hoop.netSwish > 0) {
+        hoop.netSwish--;
+      }
 
-      slime.vy += 0.35;
+      // -----------------------------------------------------------------------
+      // C. Slime Player Movement & Squash-Stretch Physics
+      // -----------------------------------------------------------------------
+      const moveSpeed = 3.35;
+      const accel = slime.grounded ? 0.55 : 0.38;
+      let targetVx = 0;
+
+      if (keys.left) {
+        targetVx -= moveSpeed;
+        slime.facing = -1;
+      }
+      if (keys.right) {
+        targetVx += moveSpeed;
+        slime.facing = 1;
+      }
+
+      slime.vx += (targetVx - slime.vx) * accel;
+      if (Math.abs(slime.vx) < 0.05) slime.vx = 0;
+
+      // Jump Trigger
+      if (keys.up && slime.grounded) {
+        slime.vy = -6.4;
+        slime.grounded = false;
+        slime.scaleX = 0.74;
+        slime.scaleY = 1.28;
+        sfx.jump();
+        spawnParticles(slime.x, FLOOR_Y, '#86efac', 5, 1.3, 0.05);
+      }
+
+      // Gravity on Slime
+      slime.vy += 0.30;
       slime.x += slime.vx;
       slime.y += slime.vy;
 
-      const minSlimeX = slime.baseRadius + 12;
-      const maxSlimeX = hoop.x - hoop.rimRadius - 16;
+      // Court Boundaries for Slime (Can roam almost up to the hoop)
+      const minSlimeX = slime.baseRadius + 6;
+      const maxSlimeX = hoop.x - hoop.rimRadius - 10;
       if (slime.x < minSlimeX) {
         slime.x = minSlimeX;
         slime.vx = 0;
@@ -555,25 +758,31 @@
         slime.vx = 0;
       }
 
+      // Floor Landing for Slime
       if (slime.y >= FLOOR_Y) {
         if (!slime.grounded && slime.vy > 1.5) {
-          slime.scaleX = 1.3;
-          slime.scaleY = 0.7;
+          slime.scaleX = 1.28;
+          slime.scaleY = 0.74;
         }
         slime.y = FLOOR_Y;
         slime.vy = 0;
         slime.grounded = true;
       }
 
+      // Spring-back Squash & Stretch Recovery
       slime.scaleX += (1 - slime.scaleX) * 0.18;
       slime.scaleY += (1 - slime.scaleY) * 0.18;
 
+      // Blinking animation
       if (slime.blinkTimer > 0) {
         slime.blinkTimer--;
       } else if (Math.random() < 0.006) {
         slime.blinkTimer = 7;
       }
 
+      // -----------------------------------------------------------------------
+      // D. Ball Serve Timer & Air Physics
+      // -----------------------------------------------------------------------
       if (!ball.active) {
         ball.serveTimer--;
         if (ball.serveTimer <= 0) {
@@ -584,16 +793,19 @@
 
       const prevBallY = ball.y;
 
+      // Record motion trail for high-speed shots
       if (frameCount % 2 === 0) {
         ball.trail.push({ x: ball.x, y: ball.y });
         if (ball.trail.length > 5) ball.trail.shift();
       }
 
-      ball.vy += 0.16;
-      ball.vx *= 0.998;
-      ball.vy *= 0.998;
+      // Lighter Gravity & Minimal Air Drag for a floatier, easier-to-read arc
+      ball.vy += 0.135;
+      ball.vx *= 0.9985;
+      ball.vy *= 0.9985;
 
-      const maxBallSpeed = 9.5;
+      // Cap max speed to prevent tunneling
+      const maxBallSpeed = 8.5;
       const currentSpeed = Math.hypot(ball.vx, ball.vy);
       if (currentSpeed > maxBallSpeed) {
         ball.vx = (ball.vx / currentSpeed) * maxBallSpeed;
@@ -604,51 +816,67 @@
       ball.y += ball.vy;
       ball.rotation += ball.vRot;
 
-      const domeRadius = (slime.baseRadius + 3) * ((slime.scaleX + slime.scaleY) * 0.5);
+      // -----------------------------------------------------------------------
+      // E. Slime Dome Head Collision (Circle-vs-Dome Physics)
+      // -----------------------------------------------------------------------
+      // Slightly generous dome hitbox so headers feel super responsive
+      const domeRadius = (slime.baseRadius + 2) * ((slime.scaleX + slime.scaleY) * 0.5);
       const domeCenterX = slime.x;
-      const domeCenterY = slime.y - domeRadius * 0.55;
+      const domeCenterY = slime.y - domeRadius * 0.58;
 
       const dx = ball.x - domeCenterX;
       const dy = ball.y - domeCenterY;
       const dist = Math.hypot(dx, dy);
       const minDist = domeRadius + ball.radius;
 
-      if (dist < minDist && dist > 0.001 && ball.y <= slime.y + 4) {
+      // Collide primarily with the upper hemisphere/dome of the slime
+      if (dist < minDist && dist > 0.001 && ball.y <= slime.y + 3) {
         const nx = dx / dist;
         const ny = dy / dist;
 
+        // Push ball out of slime dome
         const overlap = minDist - dist;
         ball.x += nx * overlap;
         ball.y += ny * overlap;
 
+        // Calculate incoming relative velocity
         const relVx = ball.vx - slime.vx;
         const relVy = ball.vy - slime.vy;
         const dot = relVx * nx + relVy * ny;
 
         if (dot < 0) {
-          const restitution = 0.88;
-          ball.vx = relVx - (1 + restitution) * dot * nx + slime.vx * 0.6;
-          ball.vy = relVy - (1 + restitution) * dot * ny + slime.vy * 0.55;
+          // Moderate-restitution slime pop + slime momentum transfer
+          const restitution = 0.86;
+          ball.vx = relVx - (1 + restitution) * dot * nx + slime.vx * 0.55;
+          ball.vy = relVy - (1 + restitution) * dot * ny + slime.vy * 0.5;
 
-          if (ny < -0.1 && ball.vy > -4.0) {
-            ball.vy = -4.0 - Math.abs(slime.vy) * 0.4;
+          // Guarantee a controlled upward launch when heading the ball
+          if (ny < -0.1 && ball.vy > -3.6) {
+            ball.vy = -3.6 - Math.abs(slime.vy) * 0.35;
           }
 
-          if (nx > -0.2 && nx < 0.9) {
+          // Gentle smart aim-assist toward the hoop when striking on the forward side
+          if (nx > -0.15 && nx < 0.85) {
             const distToHoopX = hoop.x - ball.x;
-            const idealVx = Math.max(1.8, Math.min(3.8, distToHoopX * 0.018));
-            ball.vx = ball.vx * 0.5 + idealVx * 0.5;
+            const idealVx = Math.max(1.3, Math.min(3.1, distToHoopX * 0.0165));
+            ball.vx = ball.vx * 0.55 + idealVx * 0.45;
           }
 
-          ball.vRot = ball.vx * 0.05;
-          slime.scaleX = 1.32;
-          slime.scaleY = 0.68;
+          ball.vRot = ball.vx * 0.045;
+
+          // Squash slime on impact!
+          slime.scaleX = 1.28;
+          slime.scaleY = 0.72;
 
           sfx.slimeBounce(Math.abs(dot));
           spawnParticles(ball.x - nx * ball.radius, ball.y - ny * ball.radius, '#86efac', 7, 1.8, 0.08);
         }
       }
 
+      // -----------------------------------------------------------------------
+      // F. Backboard, Rim & Basket Scoring Physics
+      // -----------------------------------------------------------------------
+      // 1. Backboard AABB vs Ball Circle Collision
       const bbLeft = hoop.boardX;
       const bbRight = hoop.boardX + hoop.boardWidth;
       const bbTop = hoop.boardTop;
@@ -676,6 +904,7 @@
             spawnParticles(closestX, closestY, '#ffffff', 5, 1.2, 0.06);
           }
         } else {
+          // Fallback if center is inside backboard
           ball.x = bbLeft - ball.radius;
           ball.vx = -Math.abs(ball.vx) * 0.82;
           ball.touchedBackboard = true;
@@ -683,61 +912,43 @@
         }
       }
 
+      // 2. Left & Right Rim Edge Collisions (Two solid circular endpoints)
       const leftRimX = hoop.x - hoop.rimRadius;
       const rightRimX = hoop.x + hoop.rimRadius;
       const rimY = hoop.y;
 
-      function resolveCircleCollision(cx, cy, cr, restitution = 0.85) {
-        const rdx = ball.x - cx;
-        const rdy = ball.y - cy;
-        const rdist = Math.hypot(rdx, rdy);
-        const minRDist = ball.radius + cr;
+      resolveCircleCollision(leftRimX, rimY, 2.2, 0.82, true);
+      resolveCircleCollision(rightRimX, rimY, 2.2, 0.82, true);
 
-        if (rdist < minRDist && rdist > 0.0001) {
-          const rnx = rdx / rdist;
-          const rny = rdy / rdist;
-          const roverlap = minRDist - rdist;
-          ball.x += rnx * roverlap;
-          ball.y += rny * roverlap;
-
-          const rvn = ball.vx * rnx + ball.vy * rny;
-          if (rvn < 0) {
-            ball.vx -= (1 + restitution) * rvn * rnx;
-            ball.vy -= (1 + restitution) * rvn * rny;
-            ball.vRot = ball.vx * 0.05;
-            ball.touchedRim = true;
-            sfx.rimHit();
-            spawnParticles(cx, cy, '#fca5a5', 5, 1.4, 0.08);
-            return true;
-          }
-        }
-        return false;
-      }
-
-      resolveCircleCollision(leftRimX, rimY, 2.5, 0.82);
-      resolveCircleCollision(rightRimX, rimY, 2.5, 0.82);
-
+      // 3. Basket Scoring Detection (Ball crosses rim plane downward inside rim)
       if (
         !ball.scoredThisShot &&
         ball.vy > 0 &&
         prevBallY <= rimY &&
         ball.y >= rimY &&
-        ball.x > leftRimX + 3 &&
-        ball.x < rightRimX - 3
+        ball.x > leftRimX + 2 &&
+        ball.x < rightRimX - 2
       ) {
         ball.scoredThisShot = true;
         basketsMade++;
         combo++;
 
+        // Calculate Points: Clean Swish or Bank Shot grants +3, standard +2, plus combo bonus
         const isSwish = !ball.touchedRim && !ball.touchedBackboard;
         const isBank = !ball.touchedRim && ball.touchedBackboard;
         let pts = (isSwish || isBank) ? 3 : 2;
         if (combo > 1) pts += Math.min(3, combo - 1);
 
         score += pts;
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('slimeball_highscore', String(highScore));
+        }
+
+        // Trigger Net Swish & Audio/Visual Celebration
         hoop.netSwish = 22;
         hoop.netSway = ball.vx * 1.4;
-        ball.vx *= 0.45;
+        ball.vx *= 0.45; // Net slows horizontal drift cleanly
         ball.vy *= 0.75;
 
         sfx.score(isSwish, combo);
@@ -745,37 +956,49 @@
 
         const label = isSwish ? `SWISH! +${pts}` : isBank ? `BANK! +${pts}` : `+${pts}`;
         const labelColor = isSwish ? '#fde047' : isBank ? '#38bdf8' : '#4ade80';
-        spawnFloatingText(hoop.x - 10, hoop.y - 14, label, labelColor);
+        spawnFloatingText(hoop.x - 6, hoop.y - 14, label, labelColor);
         spawnParticles(hoop.x, hoop.y + 6, labelColor, 14, 2.5, 0.08);
 
+        // Dynamic Hoop Progression: Gentle height shifts after every 3 baskets
         if (basketsMade % 3 === 0) {
-          const heights = [230, 270, 310, 250];
-          hoop.targetY = heights[(basketsMade / 3) % heights.length];
+          const heights = [104, 118, 128, 110];
+          const nextH = heights[(basketsMade / 3) % heights.length];
+          hoop.targetY = nextH;
         }
       }
 
-      if (ball.x - ball.radius < 10) {
-        ball.x = 10 + ball.radius;
+      // -----------------------------------------------------------------------
+      // G. Court Walls, Ceiling & Floor Bounds
+      // -----------------------------------------------------------------------
+      // Left Wall (High bounce retention)
+      if (ball.x - ball.radius < 6) {
+        ball.x = 6 + ball.radius;
         ball.vx = Math.abs(ball.vx) * 0.92;
         sfx.floorBounce(Math.abs(ball.vx));
       }
-      if (ball.x + ball.radius > WIDTH - 10) {
-        ball.x = WIDTH - 10 - ball.radius;
+
+      // Right Wall (High bounce retention)
+      if (ball.x + ball.radius > WIDTH - 6) {
+        ball.x = WIDTH - 6 - ball.radius;
         ball.vx = -Math.abs(ball.vx) * 0.92;
         sfx.floorBounce(Math.abs(ball.vx));
       }
 
-      if (ball.y < -50) {
-        ball.y = -50;
+      // Soft High Ceiling (Allow high arcs above screen, cap way up)
+      if (ball.y < -45) {
+        ball.y = -45;
         ball.vy = Math.abs(ball.vy) * 0.65;
       }
 
+      // Floor Bounce (Super bouncy & retains height much longer!)
       if (ball.y + ball.radius >= FLOOR_Y) {
         ball.y = FLOOR_Y - ball.radius;
+
         if (ball.scoredThisShot) {
+          // Clean reset after scoring a basket!
           sfx.floorBounce(Math.abs(ball.vy));
           spawnParticles(ball.x, FLOOR_Y, '#f3d2b3', 5, 1.2, 0.08);
-          scheduleServe(110 + Math.random() * 80, false);
+          scheduleServe(85 + Math.random() * 55, false);
           return;
         }
 
@@ -784,129 +1007,113 @@
           spawnParticles(ball.x, FLOOR_Y, '#f3d2b3', 4, 1.0, 0.08);
         }
 
-        ball.vy = -Math.max(3.2, Math.abs(ball.vy) * 0.90);
+        // Retain 90% of vertical bounce and keep a lively minimum dribble height
+        ball.vy = -Math.max(2.9, Math.abs(ball.vy) * 0.90);
         ball.vx *= 0.94;
         ball.vRot = ball.vx * 0.04;
 
-        if (ball.x > 270) {
-          if (combo > 0 && !ball.scoredThisShot) combo = 0;
-          scheduleServe(130 + Math.random() * 70, false);
+        // Only reset if the ball bounces deep under the hoop on the far right
+        if (ball.x > 258) {
+          if (combo > 0 && !ball.scoredThisShot) {
+            combo = 0;
+          }
+          scheduleServe(95 + Math.random() * 40, false);
         }
       }
     }
 
-    function handleInput(event) {
-      if (!event) return;
-      sfx.init();
-
-      const nx = event.x !== undefined ? event.x : 0.5;
-
-      if (event.type === 'DIRECTIONAL_VECTOR') {
-        const dx = event.x;
-        if (Math.abs(dx) > 0.15) {
-          slime.vx = dx * 5.2;
-          slime.facing = dx >= 0 ? 1 : -1;
-        } else {
-          slime.vx = 0;
-        }
-        if (event.y < -0.3 && slime.grounded) {
-          slime.vy = -7.2;
-          slime.grounded = false;
-          slime.scaleX = 0.72;
-          slime.scaleY = 1.32;
-          sfx.jump();
-          spawnParticles(slime.x, FLOOR_Y, '#86efac', 5, 1.3, 0.05);
-        }
-      } else if (event.type === 'ACTION_PRIMARY' || event.type === 'ACTION_SECONDARY') {
-        if (slime.grounded) {
-          slime.vy = -7.2;
-          slime.grounded = false;
-          slime.scaleX = 0.72;
-          slime.scaleY = 1.32;
-          sfx.jump();
-          spawnParticles(slime.x, FLOOR_Y, '#86efac', 5, 1.3, 0.05);
-        }
-        const targetWorldX = nx * WIDTH;
-        const diffX = targetWorldX - slime.x;
-        if (Math.abs(diffX) > 15) {
-          slime.vx = Math.sign(diffX) * 4.8;
-          slime.facing = Math.sign(diffX);
-        }
-      }
-    }
-
+    // =========================================================================
+    // 7. 8-BIT PIXEL-ART RENDERER
+    // =========================================================================
     function drawBackground() {
+      // Upper Gymnasium Wall
       ctx.fillStyle = PALETTE.wallUpper;
-      ctx.fillRect(0, 0, WIDTH, 360);
+      ctx.fillRect(0, 0, WIDTH, 142);
 
+      // Decorative Wall Stripes
       ctx.fillStyle = PALETTE.skyMid;
-      ctx.fillRect(0, 0, WIDTH, 75);
+      ctx.fillRect(0, 0, WIDTH, 34);
 
-      for (let wx = 35; wx <= 300; wx += 85) {
+      // High Clerestory Gym Windows
+      for (let wx = 26; wx <= 246; wx += 56) {
         ctx.fillStyle = '#141b33';
-        ctx.fillRect(wx - 2, 95, 50, 45);
+        ctx.fillRect(wx - 2, 46, 36, 26);
         ctx.fillStyle = PALETTE.windowGlass;
-        ctx.fillRect(wx, 97, 46, 41);
+        ctx.fillRect(wx, 48, 32, 22);
+        // Window Mullions & Diagonal Shine
         ctx.fillStyle = PALETTE.windowHighlight;
-        ctx.fillRect(wx + 4, 102, 12, 4);
+        ctx.fillRect(wx + 3, 51, 8, 3);
+        ctx.fillRect(wx + 3, 55, 4, 3);
         ctx.fillStyle = '#1e293b';
-        ctx.fillRect(wx + 22, 97, 3, 41);
-        ctx.fillRect(wx, 118, 46, 3);
+        ctx.fillRect(wx + 15, 48, 2, 22);
+        ctx.fillRect(wx, 58, 32, 2);
       }
 
+      // Lower Wainscoting Wall
       ctx.fillStyle = PALETTE.wallTrim;
-      ctx.fillRect(0, 354, WIDTH, 6);
+      ctx.fillRect(0, 140, WIDTH, 4);
       ctx.fillStyle = PALETTE.wallLower;
-      ctx.fillRect(0, 360, WIDTH, FLOOR_Y - 360);
+      ctx.fillRect(0, 144, WIDTH, FLOOR_Y - 144);
 
+      // Vertical Wall Panels
       ctx.fillStyle = '#171f3b';
-      for (let px = 20; px < WIDTH; px += 40) {
-        ctx.fillRect(px, 364, 2, FLOOR_Y - 364);
+      for (let px = 16; px < WIDTH; px += 32) {
+        ctx.fillRect(px, 146, 2, FLOOR_Y - 146);
       }
 
+      // Retro Court Shot-Clock / Banner Pixel Art on Wall
       ctx.fillStyle = '#0f172a';
-      ctx.fillRect(130, 160, 100, 36);
+      ctx.fillRect(138, 86, 44, 22);
       ctx.strokeStyle = '#475569';
       ctx.lineWidth = 2;
-      ctx.strokeRect(131, 161, 98, 34);
+      ctx.strokeRect(139, 87, 42, 20);
       ctx.fillStyle = '#ef4444';
-      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.font = '6px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('8-BIT', 180, 175);
+      ctx.fillText('8-BIT', 160, 96);
       ctx.fillStyle = '#4ade80';
-      ctx.fillText('SLIMEBALL', 180, 188);
+      ctx.fillText('COURT', 160, 104);
 
+      // Hardwood Court Floor
       ctx.fillStyle = PALETTE.floorTop;
-      ctx.fillRect(0, FLOOR_Y, WIDTH, 10);
+      ctx.fillRect(0, FLOOR_Y, WIDTH, 8);
       ctx.fillStyle = PALETTE.floorMid;
-      ctx.fillRect(0, FLOOR_Y + 10, WIDTH, 14);
+      ctx.fillRect(0, FLOOR_Y + 8, WIDTH, 10);
       ctx.fillStyle = PALETTE.floorDark;
-      ctx.fillRect(0, FLOOR_Y + 24, WIDTH, HEIGHT - (FLOOR_Y + 24));
+      ctx.fillRect(0, FLOOR_Y + 18, WIDTH, HEIGHT - (FLOOR_Y + 18));
 
+      // Floor Planks & Court Lines
       ctx.fillStyle = PALETTE.floorLine;
-      ctx.fillRect(0, FLOOR_Y, WIDTH, 3);
+      ctx.fillRect(0, FLOOR_Y, WIDTH, 2);
+      ctx.fillRect(160, FLOOR_Y + 2, 3, 6); // Half-court tick
+      ctx.fillRect(236, FLOOR_Y + 2, 3, 6); // Key line tick
+
       ctx.fillStyle = '#8c4b23';
-      for (let fx = 0; fx < WIDTH; fx += 30) {
-        ctx.fillRect(fx, FLOOR_Y + 3, 2, 45);
+      for (let fx = 0; fx < WIDTH; fx += 24) {
+        ctx.fillRect(fx, FLOOR_Y + 4, 2, 24);
       }
     }
 
     function drawHoopBack() {
+      // Wall Support Strut
       ctx.fillStyle = '#475569';
-      ctx.fillRect(hoop.boardX + hoop.boardWidth, hoop.y - 35, WIDTH - hoop.boardX, 8);
+      ctx.fillRect(hoop.boardX + hoop.boardWidth, hoop.y - 26, WIDTH - hoop.boardX, 6);
+      ctx.fillRect(hoop.boardX + hoop.boardWidth, hoop.y - 6, WIDTH - hoop.boardX, 6);
       ctx.fillStyle = '#94a3b8';
-      ctx.fillRect(hoop.boardX + hoop.boardWidth, hoop.y - 35, WIDTH - hoop.boardX, 2);
+      ctx.fillRect(hoop.boardX + hoop.boardWidth, hoop.y - 26, WIDTH - hoop.boardX, 2);
 
+      // Backboard
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(hoop.boardX - 1, hoop.boardTop - 1, hoop.boardWidth + 2, hoop.boardBottom - hoop.boardTop + 2);
       ctx.fillStyle = '#f8fafc';
       ctx.fillRect(hoop.boardX, hoop.boardTop, hoop.boardWidth, hoop.boardBottom - hoop.boardTop);
-
+      // Red Shooter's Square Accent on Front Edge
       ctx.fillStyle = '#ef4444';
-      ctx.fillRect(hoop.boardX, hoop.y - 20, 2, 20);
+      ctx.fillRect(hoop.boardX, hoop.y - 16, 2, 16);
 
+      // Rim Connector Bracket
       ctx.fillStyle = PALETTE.rimDark;
-      ctx.fillRect(hoop.x + hoop.rimRadius - 2, hoop.y - 1, 10, 5);
+      ctx.fillRect(hoop.x + hoop.rimRadius - 2, hoop.y - 1, 8, 4);
     }
 
     function drawHoopFrontAndNet() {
@@ -914,42 +1121,48 @@
       const rightX = hoop.x + hoop.rimRadius;
       const topY = hoop.y + 2;
 
+      // Dynamic Net Swish Geometry
       const swishProgress = hoop.netSwish > 0 ? Math.sin((hoop.netSwish / 22) * Math.PI) : 0;
-      const netHeight = 22 + swishProgress * 6;
-      const bottomSpread = 12 + swishProgress * 8;
+      const netHeight = 19 + swishProgress * 5;
+      const bottomSpread = 10 + swishProgress * 6;
       const swayX = swishProgress * (hoop.netSway || 2);
 
       const botLeftX = hoop.x - bottomSpread + swayX;
       const botRightX = hoop.x + bottomSpread + swayX;
       const botY = topY + netHeight;
 
+      // Draw Crisp Pixel-Art Criss-Cross Net Lines
       ctx.strokeStyle = PALETTE.netShadow;
       ctx.lineWidth = 1;
-      const strands = 6;
+      const strands = 5;
       for (let i = 0; i <= strands; i++) {
         const t = i / strands;
         const tx = leftX + 2 + (rightX - leftX - 4) * t;
         const bx = botLeftX + (botRightX - botLeftX) * t;
+
         ctx.beginPath();
         ctx.moveTo(Math.round(tx), Math.round(topY));
         ctx.lineTo(Math.round(bx), Math.round(botY));
         ctx.stroke();
       }
 
+      // Horizontal Net Diamond Cross-ties
       ctx.strokeStyle = PALETTE.netColor;
       for (let row = 1; row <= 3; row++) {
         const rt = row / 3.5;
         const yRow = topY + netHeight * rt;
         const lRow = leftX + 2 + (botLeftX - (leftX + 2)) * rt;
         const rRow = rightX - 2 + (botRightX - (rightX - 2)) * rt;
+
         ctx.beginPath();
         ctx.moveTo(Math.round(lRow), Math.round(yRow));
         ctx.lineTo(Math.round(rRow), Math.round(yRow));
         ctx.stroke();
       }
 
+      // Foreground Orange/Red Rim Bar
       ctx.fillStyle = PALETTE.rimDark;
-      ctx.fillRect(leftX - 1, hoop.y - 1, hoop.rimRadius * 2 + 2, 5);
+      ctx.fillRect(leftX - 1, hoop.y - 1, hoop.rimRadius * 2 + 2, 4);
       ctx.fillStyle = PALETTE.rimMain;
       ctx.fillRect(leftX, hoop.y - 1, hoop.rimRadius * 2, 3);
       ctx.fillStyle = PALETTE.rimLight;
@@ -962,8 +1175,9 @@
       const cx = Math.round(slime.x);
       const baseY = Math.round(slime.y);
 
+      // Ground Contact Shadow
       const heightOffFloor = Math.max(0, FLOOR_Y - baseY);
-      const shadowScale = Math.max(0.4, 1 - heightOffFloor / 160);
+      const shadowScale = Math.max(0.4, 1 - heightOffFloor / 140);
       ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
       ctx.fillRect(
         Math.round(cx - rx * shadowScale),
@@ -972,56 +1186,69 @@
         3
       );
 
+      // Scanline-by-scanline Pixelated Slime Dome (Crisp 8-bit stair-stepped silhouette)
       for (let dy = 0; dy < ry; dy++) {
-        const normY = dy / ry;
+        const normY = dy / ry; // 0 at bottom, 1 at top
+        // Dome curve: wide flat base, rounded top
         const halfWidth = Math.round(rx * Math.sqrt(Math.max(0, 1 - Math.pow(normY, 2.15))));
         if (halfWidth <= 0) continue;
 
         const rowY = baseY - dy - 1;
 
+        // 1px Dark Outline
         ctx.fillStyle = '#052e16';
         ctx.fillRect(cx - halfWidth - 1, rowY, halfWidth * 2 + 2, 1);
 
+        // Main Slime Green Fill
         ctx.fillStyle = PALETTE.slimeMain;
         ctx.fillRect(cx - halfWidth, rowY, halfWidth * 2, 1);
 
+        // Bottom & Right Darker Shading
         if (dy < 3) {
           ctx.fillStyle = PALETTE.slimeDark;
           ctx.fillRect(cx - halfWidth, rowY, halfWidth * 2, 1);
-        } else if (halfWidth > 5) {
+        } else if (halfWidth > 4) {
           ctx.fillStyle = PALETTE.slimeDark;
           ctx.fillRect(cx + halfWidth - 3, rowY, 3, 1);
         }
 
-        if (normY > 0.45 && halfWidth > 4) {
+        // Upper-Left Light Green Rim Highlight
+        if (normY > 0.45 && halfWidth > 3) {
           ctx.fillStyle = PALETTE.slimeLight;
-          ctx.fillRect(cx - halfWidth + 1, rowY, Math.min(5, halfWidth), 1);
+          ctx.fillRect(cx - halfWidth + 1, rowY, Math.min(4, halfWidth), 1);
         }
       }
 
+      // Top Outline Cap
       ctx.fillStyle = '#052e16';
       ctx.fillRect(cx - 3, baseY - ry - 1, 6, 1);
 
+      // Glossy Specular Pixel Highlights
       ctx.fillStyle = PALETTE.slimeSpec;
       const specX = cx - Math.round(rx * 0.45);
       const specY = baseY - Math.round(ry * 0.68);
       ctx.fillRect(specX, specY, 3, 2);
       ctx.fillRect(specX - 2, specY + 3, 2, 2);
 
+      // Expressive Eyes that Track the Ball
       const lookAngle = Math.atan2(ball.y - (baseY - ry * 0.45), ball.x - cx);
       const pupilOffsetX = Math.round(Math.cos(lookAngle) * 1.5);
       const pupilOffsetY = Math.round(Math.sin(lookAngle) * 1.2);
-      const eyeOffsetX = slime.facing * 5;
+
+      const eyeOffsetX = slime.facing * 4;
       const eyeY = baseY - Math.round(ry * 0.44);
 
-      [-6, 6].forEach((offset) => {
+      [-5, 5].forEach((offset) => {
         const ex = cx + eyeOffsetX + offset;
         if (slime.blinkTimer > 0) {
+          // Cute closed blink line
           ctx.fillStyle = '#052e16';
           ctx.fillRect(ex - 2, eyeY, 5, 1);
         } else {
+          // White Sclera
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(ex - 2, eyeY - 2, 5, 5);
+          // Dark Pupil
           ctx.fillStyle = '#0f172a';
           ctx.fillRect(ex - 1 + pupilOffsetX, eyeY - 1 + pupilOffsetY, 3, 3);
         }
@@ -1029,18 +1256,21 @@
     }
 
     function drawBall() {
+      // Draw Serve Indicator if waiting to drop
       if (!ball.active && gameState === STATE.PLAYING) {
         const blink = Math.floor(frameCount / 4) % 2 === 0;
         if (blink) {
           const sx = Math.round(ball.serveTargetX);
           ctx.fillStyle = '#fde047';
-          ctx.fillRect(sx - 1, 50, 2, 8);
-          ctx.fillRect(sx - 4, 58, 8, 1);
-          ctx.fillRect(sx - 2, 59, 4, 1);
+          ctx.fillRect(sx - 1, 24, 2, 6);
+          ctx.fillRect(sx - 3, 28, 6, 1);
+          ctx.fillRect(sx - 2, 29, 4, 1);
+          ctx.fillRect(sx - 1, 30, 2, 1);
         }
         return;
       }
 
+      // Draw Pixel Motion Trail
       ball.trail.forEach((pt, idx) => {
         const alpha = (idx + 1) / (ball.trail.length + 2) * 0.35;
         ctx.fillStyle = `rgba(251, 146, 60, ${alpha})`;
@@ -1052,29 +1282,38 @@
       const by = Math.round(ball.y);
       const r = ball.radius;
 
+      // Floor Shadow under Ball
       const ballDistFloor = Math.max(0, FLOOR_Y - by);
-      const bShadowW = Math.max(6, Math.round((r * 1.6) * (1 - ballDistFloor / 250)));
+      const bShadowW = Math.max(4, Math.round((r * 1.6) * (1 - ballDistFloor / 220)));
       ctx.fillStyle = 'rgba(15, 23, 42, 0.38)';
       ctx.fillRect(bx - Math.round(bShadowW / 2), FLOOR_Y - 1, bShadowW, 2);
 
+      // Scanline Pixel-Art Basketball
       for (let dy = -r; dy <= r; dy++) {
         const hw = Math.round(Math.sqrt(r * r - dy * dy));
         if (hw <= 0) continue;
 
+        // 1px Dark Outline
         ctx.fillStyle = PALETTE.ballSeam;
         ctx.fillRect(bx - hw - 1, by + dy, hw * 2 + 2, 1);
+
+        // Main Orange Fill
         ctx.fillStyle = PALETTE.ballMain;
         ctx.fillRect(bx - hw, by + dy, hw * 2, 1);
 
+        // Shadow on bottom-right
         if (dy > 2) {
           ctx.fillStyle = PALETTE.ballDark;
           ctx.fillRect(bx - hw + 1, by + dy, hw * 2 - 1, 1);
         }
       }
 
+      // Highlight Pixel Cluster
       ctx.fillStyle = PALETTE.ballLight;
       ctx.fillRect(bx - 4, by - 4, 3, 2);
+      ctx.fillRect(bx - 5, by - 2, 2, 2);
 
+      // Animated Rotating Basketball Seams
       ctx.fillStyle = PALETTE.ballSeam;
       const seamShift = Math.round(Math.sin(ball.rotation) * 4);
       const seamShiftY = Math.round(Math.cos(ball.rotation) * 4);
@@ -1083,12 +1322,14 @@
     }
 
     function drawParticlesAndText() {
+      // Pixel Particles
       particles.forEach((p) => {
         ctx.fillStyle = p.color;
         ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
       });
 
-      ctx.font = '8px "Press Start 2P", monospace';
+      // Floating Arcade Score Popups
+      ctx.font = '7px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
       floatingTexts.forEach((ft) => {
         const tx = Math.round(ft.x);
@@ -1101,68 +1342,121 @@
     }
 
     function drawHUD() {
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-      ctx.fillRect(0, 0, WIDTH, 30);
+      // Top Translucent Arcade Bar
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+      ctx.fillRect(0, 0, WIDTH, 20);
       ctx.fillStyle = '#334155';
-      ctx.fillRect(0, 30, WIDTH, 2);
+      ctx.fillRect(0, 20, WIDTH, 1);
 
-      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.font = '7px "Press Start 2P", monospace';
       ctx.textBaseline = 'top';
 
+      // SCORE
       ctx.textAlign = 'left';
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText('SCORE', 12, 6);
+      ctx.fillText('SCORE', 8, 3);
       ctx.fillStyle = '#4ade80';
-      ctx.fillText(String(score).padStart(4, '0'), 12, 17);
+      ctx.fillText(String(score).padStart(4, '0'), 8, 11);
 
+      // HIGH SCORE
       ctx.textAlign = 'center';
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText(combo > 1 ? `COMBO x${combo}` : `MADE:${basketsMade}`, 180, 12);
+      ctx.fillText('HIGH', 112, 3);
+      ctx.fillStyle = '#fde047';
+      ctx.fillText(String(highScore).padStart(4, '0'), 112, 11);
 
-      const remainingSec = Math.max(0, Math.ceil(gameDurationSec - timeElapsed));
+      // COMBO INDICATOR
+      if (combo > 1) {
+        ctx.fillStyle = '#fb923c';
+        ctx.fillText(`COMBO x${combo}`, 206, 7);
+      } else {
+        ctx.fillStyle = '#64748b';
+        ctx.fillText(`MADE:${basketsMade}`, 206, 7);
+      }
+
+      // TIME LEFT
+      const ceilTime = Math.ceil(timeLeft);
       ctx.textAlign = 'right';
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText('TIME', WIDTH - 12, 6);
-      ctx.fillStyle = remainingSec <= 5 && frameCount % 16 < 8 ? '#ef4444' : '#f8fafc';
-      ctx.fillText(String(remainingSec).padStart(2, '0'), WIDTH - 12, 17);
+      ctx.fillText('TIME', WIDTH - 8, 3);
+      ctx.fillStyle = ceilTime <= 10 && frameCount % 16 < 8 ? '#ef4444' : '#f8fafc';
+      ctx.fillText(String(ceilTime).padStart(2, '0'), WIDTH - 8, 11);
     }
 
-    function drawGameOverOverlay() {
-      ctx.fillStyle = 'rgba(10, 12, 24, 0.86)';
-      ctx.fillRect(30, 140, WIDTH - 60, 320);
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(30, 140, WIDTH - 60, 320);
+    function drawTitleOverlay() {
+      // Dim Backdrop Panel
+      ctx.fillStyle = 'rgba(10, 12, 24, 0.68)';
+      ctx.fillRect(28, 34, WIDTH - 56, 152);
+      ctx.strokeStyle = '#4ade80';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(28, 34, WIDTH - 56, 152);
 
+      // Retro Pixel Logo: SLIMEBALL
       ctx.textAlign = 'center';
-      ctx.font = '16px "Press Start 2P", monospace';
-      ctx.fillStyle = '#ef4444';
-      ctx.fillText('TIME UP!', WIDTH / 2, 180);
-
-      ctx.font = '9px "Press Start 2P", monospace';
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillText(`FINAL SCORE: ${score}`, WIDTH / 2, 230);
-
+      ctx.font = '18px "Press Start 2P", monospace';
+      ctx.fillStyle = '#052e16';
+      ctx.fillText('SLIMEBALL', WIDTH / 2 + 2, 64 + 2);
       ctx.fillStyle = '#4ade80';
-      ctx.fillText(`BASKETS MADE: ${basketsMade}`, WIDTH / 2, 270);
+      ctx.fillText('SLIMEBALL', WIDTH / 2, 64);
 
-      ctx.fillStyle = '#fde047';
-      ctx.fillText(`COMBO MAX: ${combo}`, WIDTH / 2, 310);
+      // Subtitle
+      ctx.font = '7px "Press Start 2P", monospace';
+      ctx.fillStyle = '#fb923c';
+      ctx.fillText('8-BIT ARCADE HOOPS', WIDTH / 2, 82);
 
+      // Instructions
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText('BOUNCE BALL OFF HEAD', WIDTH / 2, 106);
+      ctx.fillText('INTO THE HOOP!', WIDTH / 2, 118);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('SWISH / BANK = +3 PTS', WIDTH / 2, 136);
+
+      // Blinking Start Prompt
       if (Math.floor(frameCount / 22) % 2 === 0) {
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillText('READY FOR RESULTS', WIDTH / 2, 390);
+        ctx.fillStyle = '#fde047';
+        ctx.font = '8px "Press Start 2P", monospace';
+        ctx.fillText('PRESS SPACE OR TAP', WIDTH / 2, 164);
       }
     }
 
-    function renderAll(ctxTarget) {
-      if (!ctxTarget) return;
+    function drawGameOverOverlay() {
+      ctx.fillStyle = 'rgba(10, 12, 24, 0.82)';
+      ctx.fillRect(36, 42, WIDTH - 72, 148);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(36, 42, WIDTH - 72, 148);
 
-      ctxTarget.save();
+      ctx.textAlign = 'center';
+      ctx.font = '14px "Press Start 2P", monospace';
+      ctx.fillStyle = '#ef4444';
+      ctx.fillText('TIME UP!', WIDTH / 2, 68);
+
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText(`FINAL SCORE: ${score}`, WIDTH / 2, 96);
+
+      ctx.fillStyle = '#4ade80';
+      ctx.fillText(`BASKETS MADE: ${basketsMade}`, WIDTH / 2, 114);
+
+      ctx.fillStyle = '#fde047';
+      ctx.fillText(`BEST SCORE: ${highScore}`, WIDTH / 2, 132);
+
+      if (Math.floor(frameCount / 22) % 2 === 0) {
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = '8px "Press Start 2P", monospace';
+        ctx.fillText('SPACE / TAP TO RETRY', WIDTH / 2, 164);
+      }
+    }
+
+    function render() {
+      ctx.save();
+
+      // Apply subtle camera shake on big swishes
       if (screenShake > 0) {
         const sx = Math.round((Math.random() - 0.5) * screenShake);
         const sy = Math.round((Math.random() - 0.5) * screenShake);
-        ctxTarget.translate(sx, sy);
+        ctx.translate(sx, sy);
       }
 
       drawBackground();
@@ -1173,52 +1467,126 @@
       drawParticlesAndText();
       drawHUD();
 
-      if (gameState === STATE.GAMEOVER) {
+      if (gameState === STATE.TITLE) {
+        drawTitleOverlay();
+      } else if (gameState === STATE.GAMEOVER) {
         drawGameOverOverlay();
       }
 
-      ctxTarget.restore();
+      ctx.restore();
     }
 
-    function getResult() {
-      return {
-        score: score,
-        timeElapsed: Number(timeElapsed.toFixed(2)),
-        completionPercent: Math.min(100, Math.round((timeElapsed / gameDurationSec) * 100)),
-        customData: {
-          basketsMade: basketsMade,
-          maxCombo: combo
+    // =========================================================================
+    // 8. MAIN FIXED-TIMESTEP GAME LOOP
+    // =========================================================================
+    let lastTime = 0;
+    const STEP = 1000 / 60;
+    let accumulator = 0;
+
+    function gameLoop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const frameTime = Math.min(100, timestamp - lastTime);
+      lastTime = timestamp;
+      accumulator += frameTime;
+
+      while (accumulator >= STEP) {
+        updateGame(STEP / 1000);
+        accumulator -= STEP;
+      }
+
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // =========================================================================
+    // 9. KEYBOARD, POINTER & TOUCH INPUT HANDLERS
+    // =========================================================================
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space', ' '].includes(e.key)) {
+        e.preventDefault();
+      }
+
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') {
+        keys.up = true;
+        if (gameState !== STATE.PLAYING) {
+          startGame();
+        }
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') keys.up = false;
+    });
+
+    // Canvas Tap to Start / Restart
+    canvas.addEventListener('pointerdown', () => {
+      sfx.init();
+      if (gameState !== STATE.PLAYING) {
+        startGame();
+      }
+    });
+
+    // Helper to bind on-screen arcade buttons for both touch and mouse
+    function bindArcadeButton(btnId, keyName) {
+      const btn = document.getElementById(btnId);
+      const press = (e) => {
+        e.preventDefault();
+        sfx.init();
+        keys[keyName] = true;
+        btn.classList.add('pressed');
+        if (keyName === 'up' && gameState !== STATE.PLAYING) {
+          startGame();
         }
       };
+      const release = (e) => {
+        e.preventDefault();
+        keys[keyName] = false;
+        btn.classList.remove('pressed');
+      };
+
+      btn.addEventListener('pointerdown', press);
+      btn.addEventListener('pointerup', release);
+      btn.addEventListener('pointerleave', release);
+      btn.addEventListener('pointercancel', release);
     }
 
+    bindArcadeButton('btn-left', 'left');
+    bindArcadeButton('btn-right', 'right');
+    bindArcadeButton('btn-jump', 'up');
+
+    // CRT Scanline Toggle
     const btnCrt = document.getElementById('btn-crt');
     const crtOverlay = document.getElementById('crt-overlay');
     let crtEnabled = true;
-    if (btnCrt && crtOverlay) {
-      btnCrt.addEventListener('click', () => {
-        crtEnabled = !crtEnabled;
-        crtOverlay.classList.toggle('hidden', !crtEnabled);
-        btnCrt.textContent = crtEnabled ? 'CRT:ON' : 'CRT:OFF';
-        btnCrt.classList.toggle('active', crtEnabled);
-      });
-    }
-
-    const btnMute = document.getElementById('btn-mute');
-    if (btnMute) {
-      btnMute.addEventListener('click', () => {
-        sfx.muted = !sfx.muted;
-        btnMute.textContent = sfx.muted ? 'SFX:OFF' : 'SFX:ON';
-        btnMute.classList.toggle('active', !sfx.muted);
-        if (!sfx.muted) sfx.serve();
-      });
-    }
-
-    window.addEventListener('load', () => {
-      if (typeof initGame === 'function') {
-        initGame({ seed: 12345, hue: 120, theme: 'arcade' });
-      }
+    btnCrt.addEventListener('click', () => {
+      crtEnabled = !crtEnabled;
+      crtOverlay.classList.toggle('hidden', !crtEnabled);
+      btnCrt.textContent = crtEnabled ? 'CRT:ON' : 'CRT:OFF';
+      btnCrt.classList.toggle('active', crtEnabled);
     });
+
+    // Mute Audio Toggle
+    const btnMute = document.getElementById('btn-mute');
+    btnMute.addEventListener('click', () => {
+      sfx.muted = !sfx.muted;
+      btnMute.textContent = sfx.muted ? 'SFX:OFF' : 'SFX:ON';
+      btnMute.classList.toggle('active', !sfx.muted);
+      if (!sfx.muted) sfx.serve();
+    });
+
+    // Show keyboard hint on wider desktop screens
+    if (window.innerWidth >= 640) {
+      document.getElementById('desktop-hint').style.display = 'block';
+    }
+
+    // Start Animation Loop on Window Load
+    window.onload = () => {
+      requestAnimationFrame(gameLoop);
+    };
   </script>
 </body>
 </html>

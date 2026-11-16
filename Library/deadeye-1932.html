@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- microfeed: {"title":"Deadeye Reel","icon":"🔫","description":"Aim for zombie heads, deflect incoming attacks, and duck behind cover to reload.","tags":{"Reflex":0.8,"Precision":1,"Survival":0.6}} -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -749,12 +750,23 @@
       // =========================================================================
       // 2. GAME STATE & CONFIGURATION
       // =========================================================================
-      const canvas = document.getElementById('gameCanvas');
-      const ctx = canvas.getContext('2d');
-
       const MAX_AMMO = 6;
       const MAX_HEALTH = 4;
-      const HIGHSCORE_KEY = 'deadeye_reel_1932_highscore';
+      const GAME_LENGTH = 20;
+      const hostCanvas = document.getElementById('c');
+      const hostMode = !!hostCanvas;
+      const canvas = hostCanvas || document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+
+      window.GameMeta = {title: 'Deadeye Reel', gameLength: GAME_LENGTH * 1000};
+      if (hostMode) {
+        document.documentElement.style.cssText = 'width:100%;height:100%;overflow:hidden';
+        document.body.style.cssText = 'width:100%;height:100%;margin:0;overflow:hidden;background:transparent';
+        for (const child of document.body.children) {
+          if (child !== canvas) child.style.display = 'none';
+        }
+        canvas.style.cssText = 'display:block;width:100%;height:100%;border:0;border-radius:0;box-shadow:none;cursor:crosshair';
+      }
 
       const state = {
         mode: 'START', // 'START' | 'PLAYING' | 'GAMEOVER'
@@ -766,7 +778,7 @@
 
         // Player stats
         score: 0,
-        highScore: parseInt(localStorage.getItem(HIGHSCORE_KEY) || '0', 10),
+        highScore: 0,
         combo: 0,
         shotsFired: 0,
         headshotsLanded: 0,
@@ -887,7 +899,7 @@
       // 4. RESPONSIVE CANVAS RESIZING
       // =========================================================================
       function resizeCanvas() {
-        const rect = canvas.parentElement.getBoundingClientRect();
+        const rect = hostMode ? {width: 360, height: 640} : canvas.parentElement.getBoundingClientRect();
         state.dpr = Math.min(window.devicePixelRatio || 1, 2);
         state.width = rect.width;
         state.height = rect.height;
@@ -1205,10 +1217,7 @@
             const totalPts = z.cfg.points + bonus;
             state.score += totalPts;
 
-            if (state.score > state.highScore) {
-              state.highScore = state.score;
-              localStorage.setItem(HIGHSCORE_KEY, String(state.highScore));
-            }
+            if (state.score > state.highScore) state.highScore = state.score;
 
             audio.playHeadshotDing();
             spawnParticles(hb.head.x, hb.head.y, '#14100c', 18, 1.25);
@@ -1302,7 +1311,7 @@
       }
 
       canvas.addEventListener('pointerdown', (e) => {
-        if (state.mode !== 'PLAYING') return;
+        if (hostMode || state.mode !== 'PLAYING') return;
         // Right-click on desktop toggles cover
         if (e.button === 2) {
           setCover(true);
@@ -1389,12 +1398,14 @@
 
       // Keyboard Support (Spacebar / Down Arrow / S to Duck & Reload)
       window.addEventListener('keydown', (e) => {
+        if (hostMode) return;
         if (e.code === 'Space' || e.code === 'ArrowDown' || e.code === 'KeyS') {
           e.preventDefault();
           setCover(true);
         }
       });
       window.addEventListener('keyup', (e) => {
+        if (hostMode) return;
         if (e.code === 'Space' || e.code === 'ArrowDown' || e.code === 'KeyS') {
           e.preventDefault();
           setCover(false);
@@ -1418,9 +1429,10 @@
 
       function beginNewGame() {
         audio.init();
-        audio.startMusic();
+        if (!hostMode) audio.startMusic();
 
         state.mode = 'PLAYING';
+        state.time = 0;
         state.score = 0;
         state.combo = 0;
         state.shotsFired = 0;
@@ -1447,6 +1459,7 @@
       document.getElementById('restart-btn').addEventListener('click', beginNewGame);
 
       function triggerGameOver(reason) {
+        if (state.mode === 'GAMEOVER') return;
         state.mode = 'GAMEOVER';
         state.isCovering = false;
         state.pointerActive = false;
@@ -1465,6 +1478,7 @@
         document.getElementById('final-accuracy').textContent = `${accuracy}%`;
 
         gameoverScreen.classList.remove('hidden');
+        if (hostMode && window.Platform && window.Platform.endGame) window.Platform.endGame();
       }
 
       function damagePlayer(amount = 1) {
@@ -2290,6 +2304,37 @@
         ctx.restore();
       }
 
+      window.initGame = beginNewGame;
+      window.updateGame = update;
+      window.handleInput = (event) => {
+        if (!event || state.mode !== 'PLAYING') return;
+        if (event.type === 'ACTION_PRIMARY') {
+          const x = Math.max(0, Math.min(1, typeof event.x === 'number' ? event.x : 0.5)) * state.width;
+          const y = Math.max(0, Math.min(1, typeof event.y === 'number' ? event.y : 0.5)) * state.height;
+          fireShot(x, y);
+        } else if (event.type === 'ACTION_SECONDARY') {
+          setCover(!state.isCovering);
+        } else if (event.type === 'DIRECTIONAL_VECTOR') {
+          setCover(!!event.active && Number(event.y) > 0.5);
+        }
+      };
+      window.getResult = () => ({
+        score: state.score,
+        timeElapsed: state.time,
+        completionPercent: Math.min(100, state.time / GAME_LENGTH * 100),
+        customData: {wave: state.wave, health: state.health, headshots: state.headshotsLanded, shots: state.shotsFired}
+      });
+      window.renderAll = (target) => {
+        render();
+        if (target && target !== ctx) target.drawImage(canvas, 0, 0, target.canvas.width, target.canvas.height);
+      };
+      window.onEndGame = () => {
+        state.mode = 'GAMEOVER';
+        state.isCovering = false;
+        state.pointerActive = false;
+        state.isADS = false;
+      };
+
       // =========================================================================
       // 11. MAIN ANIMATION LOOP
       // =========================================================================
@@ -2307,7 +2352,7 @@
       window.onload = () => {
         resizeCanvas();
         updateHUD();
-        requestAnimationFrame(gameLoop);
+        if (!hostMode) requestAnimationFrame(gameLoop);
       };
     })();
   </script>

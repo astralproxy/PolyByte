@@ -12,6 +12,18 @@
       "description": "Tap the lanes in time with the falling notes and keep your combo alive."
     },
     {
+      "id": "deadeye-1932",
+      "file": "deadeye-1932.html",
+      "title": "Deadeye Reel",
+      "tags": {
+        "Reflex": 0.8,
+        "Precision": 1,
+        "Survival": 0.6
+      },
+      "icon": "🔫",
+      "description": "Aim for zombie heads, deflect incoming attacks, and duck behind cover to reload."
+    },
+    {
       "id": "dodge",
       "file": "drift-dash.html",
       "title": "Drift Dash",
@@ -48,6 +60,30 @@
       "description": "Watch the pads light up, then repeat the pattern. Three rounds, each one longer."
     },
     {
+      "id": "mountain-stream",
+      "file": "mountain-stream.html",
+      "title": "Mountain Stream",
+      "tags": {
+        "Precision": 0.7,
+        "Racing": 0.6,
+        "Survival": 0.3
+      },
+      "icon": "~",
+      "description": "Steer a stream down the mountain, merge into bigger pools, and reach the ocean before you dry up."
+    },
+    {
+      "id": "Necro-Nom",
+      "file": "Necro-Nom.html",
+      "title": "Necro-Nom",
+      "tags": {
+        "Puzzle": 0.6,
+        "Spatial": 0.8,
+        "Reflex": 0.4
+      },
+      "icon": "👻",
+      "description": "Guide the reaper through the crypt, collect every soul, and beat the clock."
+    },
+    {
       "id": "pop",
       "file": "pop-rush.html",
       "title": "Pop Rush",
@@ -64,10 +100,9 @@
       "title": "Slimeball 8-Bit Arcade",
       "tags": {
         "Sports": 1,
-        "Precision": 0.8,
-        "Arcade": 0.5
+        "Precision": 0.8
       },
-      "icon": "\ud83c\udfc0",
+      "icon": "🏀",
       "description": "8-bit arcade slime basketball game with precision physics and chiptune sound."
     }
   ]

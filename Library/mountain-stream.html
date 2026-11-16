@@ -1,0 +1,270 @@
+<!-- microfeed: {"title":"Mountain Stream","icon":"~","description":"Steer a stream down the mountain, merge into bigger pools, and reach the ocean before you dry up.","tags":{"Precision":0.7,"Racing":0.6,"Survival":0.3}} -->
+<script>
+window.GameMeta = {title: 'Mountain Stream', gameLength: 20000};
+
+(function () {
+  var W = 360, H = 640, L = 1900, U = 170, LIMIT = 20;
+  var S = null;
+
+  function hashSeed(s) {
+    s = String(s === undefined ? 1 : s);
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+    return h >>> 0;
+  }
+  function rngFrom(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      var t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+
+  /* Pools are created in one place, the reset() function, where a loop pushes one object per pool into the pools array. Everything else (drawing, collision, the HUD, scoring) reads from that array, so adding or moving pools only means changing that loop.
+  - Adding pools: The number of pools is set by the loop count (currently 5) and the radii list, which holds one size per pool. To add pools, make the loop run more times and give radii more entries. Each new radius should be larger than the one before, so the pools keep getting bigger. The HUD text is hardcoded to “/5”, so change it to read S.pools.length.
+  - Controlling placement: Each pool has two position values.
+    - v (distance down the mountain): This is currently 250 + i * 260, meaning a start point plus a fixed spacing. Lower the spacing to pack pools closer together, or raise the start value to push the first one further down. Keep the last pool’s v comfortably below the ocean line at 1900, or it will sit right at the ocean.
+    - u (left/right position): This is currently a seeded random value within about ±95. Narrow that range to make the pools easier to line up, or widen it to force bigger swerves. The edge of the mountain is at ±170, so keep a pool’s u plus its radius under that or it will hang off the side. You can also replace the random value with a fixed list, an alternating left/right pattern, or a sine wave to get a specific layout.
+
+  Interactions to watch:
+  - Rocks: They’re placed after the pools and avoid them automatically, so rocks never block a pool.
+  - Pace: Closer pools mean more speed boosts and a wider stream sooner. The speed per pool and the width cap are set in updateGame and headR(), so retune those if the game gets too easy or too fast.
+*/
+  function reset(p) {
+    p = p || {};
+    var rnd = rngFrom(hashSeed(p.seed));
+    var hue = typeof p.hue === 'number' ? p.hue : 210;
+    var pools = [], rocks = [], i, tries;
+    var radii = [20, 26, 32, 40, 48, 56, 64, 72];   // one entry per pool, small to big
+    var N = radii.length;
+    for (i = 0; i < N; i++) {
+      pools.push({u: (rnd() * 2 - 1) * 95, v: 220 + i * 190, r: radii[i], tier: i + 1, hit: false, flash: 0});
+    }
+    for (i = 0; i < 18; i++) {
+      for (tries = 0; tries < 8; tries++) {
+        var r = {u: (rnd() * 2 - 1) * 130, v: 120 + rnd() * (L - 300), w: 16 + rnd() * 16, d: 14 + rnd() * 10, h: 10 + rnd() * 12, hit: false};
+        var ok = true;
+        for (var k = 0; k < pools.length; k++) {
+          if (Math.hypot(r.u - pools[k].u, r.v - pools[k].v) < pools[k].r + 30) ok = false;
+        }
+        if (ok) { rocks.push(r); break; }
+      }
+    }
+    S = {
+      hue: hue, u: 0, v: 0, cu: 0, uVel: 0, steer: 0, vol: 32, t: 0, hits: 0, score: 0,
+      boost: 0, slow: 0, trail: [], lastTrailV: 0, pools: pools, rocks: rocks,
+      ended: false, reached: false, dried: false, endRequested: false
+    };
+    S.trail.push({u: 0, v: 0, r: 6});
+  }
+  reset(window.PARAMS);
+
+  function headR() { return clamp(5 + S.hits * 2.5, 5, 26); }
+
+  function requestEnd() {
+    if (S.endRequested) return;
+    S.endRequested = true;
+    try {
+      if (window.Platform && window.Platform.endGame) window.Platform.endGame();
+      else if (window.endGame) window.endGame();
+    } catch (e) {}
+  }
+
+  window.initGame = function (params) { reset(params || window.PARAMS); };
+
+  window.updateGame = function (dt) {
+    try {
+      if (!S || S.ended || S.reached || S.dried) return;
+      dt = clamp(Number(dt) || 0, 0, 0.05);
+      S.t += dt;
+      S.vol -= 3 * dt;
+      S.boost = Math.max(0, S.boost - dt);
+      S.slow = Math.max(0, S.slow - dt);
+      var rr = headR();
+
+      S.uVel += (S.steer * 150 - S.uVel) * Math.min(1, dt * 8);
+      S.u = clamp(S.u + S.uVel * dt, -150, 150);
+
+      var speed = 75 + S.hits * 8;
+      if (S.boost > 0) speed *= 1.5;
+      if (S.slow > 0) speed *= 0.45;
+      S.v += speed * dt;
+
+      var i, p, r;
+      for (i = 0; i < S.pools.length; i++) {
+        p = S.pools[i];
+        if (p.flash > 0) p.flash = Math.max(0, p.flash - dt);
+        if (!p.hit && Math.hypot(S.u - p.u, S.v - p.v) < p.r * 0.9) {
+          p.hit = true; p.flash = 0.8;
+          S.hits++;
+          S.vol += 20 + 10 * p.tier;
+          S.score += 100 * p.tier;
+          S.boost = 0.6;
+        }
+      }
+      for (i = 0; i < S.rocks.length; i++) {
+        r = S.rocks[i];
+        var dx = S.u - r.u, dv = S.v - r.v;
+        if (Math.abs(dx) < r.w / 2 + rr * 0.7 && Math.abs(dv) < r.d / 2 + rr * 0.5) {
+          S.u = clamp(S.u + (dx >= 0 ? 1 : -1) * 300 * dt, -150, 150);
+          S.slow = 0.4;
+          if (!r.hit) { r.hit = true; S.vol -= 6; }
+        }
+      }
+      S.vol = Math.min(S.vol, 140);
+
+      if (S.v - S.lastTrailV >= 5) {
+        S.trail.push({u: S.u, v: S.v, r: rr});
+        S.lastTrailV = S.v;
+        if (S.trail.length > 70) S.trail.shift();
+      }
+      S.cu += (S.u * 0.5 - S.cu) * Math.min(1, dt * 5);
+
+      if (S.v >= L) { S.v = L; S.reached = true; requestEnd(); }
+      else if (S.vol <= 0) { S.vol = 0; S.dried = true; requestEnd(); }
+    } catch (e) {}
+  };
+
+  window.handleInput = function (ev) {
+    try {
+      if (!ev || S.ended || S.reached || S.dried) return;
+      if (ev.type === 'DIRECTIONAL_VECTOR') {
+        S.steer = ev.active ? clamp(Number(ev.x) || 0, -1, 1) : 0;
+      } else if (ev.type === 'ACTION_PRIMARY') {
+        S.uVel += ((Number(ev.x) || 0.5) < 0.5 ? -1 : 1) * 140;
+      }
+    } catch (e) {}
+  };
+
+  window.onEndGame = function () { S.ended = true; S.steer = 0; };
+
+  window.getResult = function () {
+    var bonus = S.reached ? 500 + Math.max(0, LIMIT - S.t) * 25 : 0;
+    var score = Math.round(S.score + Math.max(0, S.vol) + bonus);
+    return {
+      score: isFinite(score) ? score : 0,
+      timeElapsed: isFinite(S.t) ? S.t : 0,
+      completionPercent: S.reached ? 100 : clamp(S.v / L * 100, 0, 100),
+      customData: {pools: S.hits, reachedOcean: S.reached, dried: S.dried, volume: Math.round(S.vol)}
+    };
+  };
+
+  function P(u, v, z) {
+    return [180 + u, 170 + (v - S.v) * 0.7 - (z || 0)];
+  }
+  function poly(ctx, pts, fill) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+  function groundColor(v, alt, t) {
+    var sh = alt ? 3 : -3;
+    if (v >= L) return 'hsl(205,70%,' + (42 + sh + Math.sin(t * 2 + v * 0.05) * 3) + '%)';
+    var f = v / L;
+    if (f < 0.12) return 'hsl(210,20%,' + (88 + sh) + '%)';
+    if (f < 0.4) return 'hsl(25,15%,' + (55 + sh) + '%)';
+    if (f < 0.8) return 'hsl(100,35%,' + (42 + sh) + '%)';
+    return 'hsl(45,45%,' + (65 + sh) + '%)';
+  }
+
+  function box(ctx, r) {
+    var u0 = r.u - r.w / 2, u1 = r.u + r.w / 2, v0 = r.v - r.d / 2, v1 = r.v + r.d / 2;
+    poly(ctx, [P(u0, v1, 0), P(u1, v1, 0), P(u1, v1, r.h), P(u0, v1, r.h)], 'hsl(220,8%,38%)');
+    poly(ctx, [P(u1, v0, 0), P(u1, v1, 0), P(u1, v1, r.h), P(u1, v0, r.h)], 'hsl(220,8%,30%)');
+    poly(ctx, [P(u0, v0, r.h), P(u1, v0, r.h), P(u1, v1, r.h), P(u0, v1, r.h)], 'hsl(220,8%,56%)');
+  }
+
+  function drawPool(ctx, p) {
+    var c = P(p.u, p.v, 0);
+    var rx = p.r, ry = p.r * 0.7;
+    var a = p.hit ? 0.35 : 1;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'hsl(215,40%,25%)';
+    ctx.beginPath(); ctx.ellipse(c[0], c[1] + 4, rx + 3, ry + 3, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = 'hsl(200,75%,' + (50 + p.tier * 2 + (p.flash > 0 ? 15 : 0)) + '%)';
+    ctx.beginPath(); ctx.ellipse(c[0], c[1], rx, ry, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath(); ctx.ellipse(c[0] - rx * 0.25, c[1] - ry * 0.3, rx * 0.4, ry * 0.2, 0, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  window.renderAll = function (ctx) {
+    try {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = 'hsl(' + S.hue + ',25%,14%)';
+      ctx.fillRect(0, 0, W, H);
+
+      var start = Math.floor((S.v - 300) / 40) * 40, i, row = 0;
+      for (var v0 = start; v0 < S.v + 700 && v0 < L + 400; v0 += 40) {
+        if (v0 + 40 <= 0) continue;
+        var a = v0 < 0 ? 0 : v0, v1 = v0 + 40;
+        var alt = Math.round(v0 / 40) % 2 === 0;
+        var ext = v0 >= L ? 120 : 0;
+        if (v0 < L) {
+          poly(ctx, [P(-U, a, 0), P(-U, v1, 0), P(-U, v1, -40), P(-U, a, -40)], 'rgba(0,0,0,0.45)');
+          poly(ctx, [P(U, a, 0), P(U, v1, 0), P(U, v1, -40), P(U, a, -40)], 'rgba(0,0,0,0.35)');
+        }
+        poly(ctx, [P(-U - ext, a, 0), P(U + ext, a, 0), P(U + ext, v1, 0), P(-U - ext, v1, 0)], groundColor(a, alt, S.t));
+      }
+
+      for (i = 0; i < S.pools.length; i++) drawPool(ctx, S.pools[i]);
+
+      for (i = 0; i < S.rocks.length; i++) if (S.rocks[i].v < S.v) box(ctx, S.rocks[i]);
+
+      var pts = S.trail.slice();
+      pts.push({u: S.u, v: S.v, r: headR()});
+      ctx.lineCap = 'round';
+      var n = pts.length, s0, s1, k, f;
+      for (k = 0; k < 3; k++) {
+        for (i = 1; i < n; i++) {
+          s0 = P(pts[i - 1].u, pts[i - 1].v, 0); s1 = P(pts[i].u, pts[i].v, 0);
+          f = 0.4 + 0.6 * i / n;
+          ctx.beginPath();
+          ctx.moveTo(s0[0], s0[1] + (k === 0 ? 3 : 0));
+          ctx.lineTo(s1[0], s1[1] + (k === 0 ? 3 : 0));
+          if (k === 0) { ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = pts[i].r * 2 * f; }
+          else if (k === 1) { ctx.strokeStyle = 'hsl(205,85%,50%)'; ctx.lineWidth = pts[i].r * 2 * f; }
+          else { ctx.strokeStyle = 'hsl(195,90%,72%)'; ctx.lineWidth = pts[i].r * 0.8 * f; }
+          ctx.stroke();
+        }
+      }
+
+      var h = P(S.u, S.v, headR() * 0.4), rr = headR();
+      ctx.fillStyle = 'hsl(205,90%,55%)';
+      ctx.beginPath(); ctx.arc(h[0], h[1], rr, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath(); ctx.arc(h[0] - rr * 0.3, h[1] - rr * 0.3, rr * 0.35, 0, 7); ctx.fill();
+
+      for (i = 0; i < S.rocks.length; i++) if (S.rocks[i].v >= S.v) box(ctx, S.rocks[i]);
+
+      // HUD
+      var left = Math.max(0, LIMIT - S.t);
+      ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(10, 10, 340, 40);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText('Pools ' + S.hits + '/' + S.pools.length, 18, 27);
+      ctx.textAlign = 'right'; ctx.fillText(left.toFixed(1) + 's', 342, 27);
+      ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(18, 35, 324, 8);
+      ctx.fillStyle = S.vol < 15 ? 'hsl(0,80%,60%)' : 'hsl(200,90%,60%)';
+      ctx.fillRect(18, 35, 324 * clamp(S.vol / 100, 0, 1), 8);
+
+      ctx.textAlign = 'center';
+      if (S.t < 3) {
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('Drag to steer. Merge into pools!', 180, 90);
+      }
+      if (S.reached) {
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 28px sans-serif'; ctx.fillText('OCEAN REACHED!', 180, 300);
+      } else if (S.dried) {
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 28px sans-serif'; ctx.fillText('DRIED UP', 180, 300);
+      }
+    } catch (e) {}
+  };
+})();
+</script>
