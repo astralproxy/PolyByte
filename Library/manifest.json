@@ -95,15 +95,28 @@
       "description": "Tap the targets before they fade. Clear 12 pops in 15 seconds; hold for a bomb."
     },
     {
+      "id": "robosweep",
+      "file": "robosweep.html",
+      "title": "RoboSweep",
+      "tags": {
+        "Spatial": 1,
+        "Endurance": 0.5,
+        "Precision": 0.4
+      },
+      "icon": "🧹",
+      "description": "Drive a robot vacuum through four connected rooms and clean as much floor as possible."
+    },
+    {
       "id": "slimeball",
       "file": "slimeball.html",
       "title": "Slimeball 8-Bit Arcade",
       "tags": {
         "Sports": 1,
-        "Precision": 0.8
+        "Precision": 0.8,
+        "Physics": 0.7
       },
       "icon": "🏀",
-      "description": "8-bit arcade slime basketball game with precision physics and chiptune sound."
+      "description": "8-bit arcade slime basketball game. Drag to move and tap or press Space to jump and bounce the ball into the hoop!"
     }
   ]
 }

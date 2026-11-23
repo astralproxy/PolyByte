@@ -1,0 +1,259 @@
+<!-- microfeed: {"title":"RoboSweep","icon":"🧹","description":"Drive a robot vacuum through four connected rooms and clean as much floor as possible.","tags":{"Spatial":1,"Endurance":0.5,"Precision":0.4}} -->
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>RoboSweep</title><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101827;color:#eef4ff;font-family:system-ui}canvas{display:block;width:100%;height:100%;touch-action:none}</style></head><body><canvas id="game"></canvas>
+<script>
+'use strict';window.GameMeta={title:'RoboSweep',gameLength:30000};
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),W=640,H=800,T=16;
+let rooms=[],furniture=[],grid=[];
+let doors={};
+let keys={};
+let stick={x:0,y:0,active:false};
+let robot={x:130,y:620,r:13,angle:0};
+let elapsed=0,cleaned=0,total=0,ended=false,seed=1;
+
+function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}
+// Tile centers are clamped to the robot's center-safe bounds so the edge tiles
+// line up with collision geometry instead of leaving a half-tile dead margin.
+function tileCenter(gx,gy){
+  const minX=doors.padX+robot.r, maxX=doors.padX+doors.totalW-robot.r;
+  const minY=doors.padY+robot.r, maxY=doors.padY+doors.totalH-robot.r;
+  const baseX=gx*T+T/2, baseY=gy*T+T/2;
+  const x=baseX>=doors.padX&&baseX<=doors.padX+doors.totalW?Math.max(minX,Math.min(maxX,baseX)):baseX;
+  const y=baseY>=doors.padY&&baseY<=doors.padY+doors.totalH?Math.max(minY,Math.min(maxY,baseY)):baseY;
+  return {x,y};
+}
+function initGame(){rebuild();}
+
+function rebuild(){
+  // HOUSE GEOMETRY IS GRID-FIRST: perimeter, room splits, door centers,
+  // doorway widths, and furniture dimensions/positions are all tile multiples.
+  const padX=32, padY=32;
+  const totalW=576, totalH=736; // 36 x 46 whole tiles
+  const cols=totalW/T, rows=totalH/T;
+  const splitCol=16+Math.floor(rand()*5); // 16..20 tiles across
+  const splitRow=20+Math.floor(rand()*7); // 20..26 tiles down
+  const splitX=padX+splitCol*T, splitY=padY+splitRow*T;
+  const w1=splitCol*T,w2=totalW-w1,h1=splitRow*T,h2=totalH-h1;
+  rooms=[
+    {x:padX,y:padY,w:w1,h:h1,name:'LIVING'},
+    {x:splitX,y:padY,w:w2,h:h1,name:'KITCHEN'},
+    {x:padX,y:splitY,w:w1,h:h2,name:'BEDROOM'},
+    {x:splitX,y:splitY,w:w2,h:h2,name:'STUDY'}
+  ];
+  const doorSpan=4*T; // four tiles wide, comfortably wider than the robot
+  const doorTiles=doorSpan/T;
+  const pickDoorCenter=(start,extent)=>start+Math.floor((2+rand()*Math.max(1,extent/T-doorTiles-4))+doorTiles/2)*T;
+  doors={splitX,splitY,padX,padY,totalW,totalH,span:doorSpan,
+    topY:pickDoorCenter(padY,h1),botY:pickDoorCenter(splitY,h2),
+    leftX:pickDoorCenter(padX,w1),rightX:pickDoorCenter(splitX,w2)};
+
+  const minGap=robot.r*2;
+  const overlaps=(a,b)=>a.x-minGap<b.x+b.w&&a.x+a.w+minGap>b.x&&a.y-minGap<b.y+b.h&&a.y+a.h+minGap>b.y;
+  const intersects=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+  const hitsDoor=(box)=>{
+    const {splitX,splitY,topY,botY,leftX,rightX,span}=doors;
+    const half=span/2+minGap/2,approach=minGap;
+    const zones=[
+      {x:splitX-approach,y:topY-half,w:approach*2,h:half*2},
+      {x:splitX-approach,y:botY-half,w:approach*2,h:half*2},
+      {x:leftX-half,y:splitY-approach,w:half*2,h:approach*2},
+      {x:rightX-half,y:splitY-approach,w:half*2,h:approach*2}
+    ];
+    return zones.some(z=>intersects(box,z));
+  };
+  furniture=[];
+  for(const r of rooms){
+    for(let j=0;j<3;j++){
+      // Furniture footprints are also tile multiples (3-6 tiles).
+      const w=(3+Math.floor(rand()*4))*T,h=(3+Math.floor(rand()*4))*T;
+      const item={x:0,y:0,w,h},againstWall=rand()<0.45,side=Math.floor(rand()*4);
+      let tries=0;
+      do{
+        const maxTX=Math.max(1,(r.w-w)/T),maxTY=Math.max(1,(r.h-h)/T);
+        if(againstWall){
+          if(side===0){item.x=r.x+Math.floor(rand()*maxTX)*T;item.y=r.y;}
+          else if(side===1){item.x=r.x+Math.floor(rand()*maxTX)*T;item.y=r.y+r.h-h;}
+          else if(side===2){item.x=r.x;item.y=r.y+Math.floor(rand()*maxTY)*T;}
+          else{item.x=r.x+r.w-w;item.y=r.y+Math.floor(rand()*maxTY)*T;}
+        }else{
+          const clear=robot.r*2+T;
+          const minX=Math.ceil((r.x+clear)/T)*T,maxX=Math.floor((r.x+r.w-w-clear)/T)*T;
+          const minY=Math.ceil((r.y+clear)/T)*T,maxY=Math.floor((r.y+r.h-h-clear)/T)*T;
+          item.x=maxX>=minX?minX+Math.floor(rand()*(Math.floor((maxX-minX)/T)+1))*T:r.x+Math.floor((r.w-w)/2/T)*T;
+          item.y=maxY>=minY?minY+Math.floor(rand()*(Math.floor((maxY-minY)/T)+1))*T:r.y+Math.floor((r.h-h)/2/T)*T;
+        }
+      }while(++tries<60&&(hitsDoor(item)||furniture.some(o=>overlaps(item,o))));
+      if(!hitsDoor(item)&&!furniture.some(o=>overlaps(item,o)))furniture.push(item);
+    }
+  }
+  grid=[];cleaned=0;total=0;
+  for(let gy=0;gy<Math.ceil(H/T);gy++){
+    grid[gy]=[];
+    for(let gx=0;gx<Math.ceil(W/T);gx++){
+      const {x:px,y:py}=tileCenter(gx,gy);
+      const inBounds=px>=padX&&px<=padX+totalW&&py>=padY&&py<=padY+totalH;
+      const inside=inBounds&&!hitsSharedWall(px,py,2);
+      const blocked=furniture.some(o=>px>=o.x-5&&px<=o.x+o.w+5&&py>=o.y-5&&py<=o.y+o.h+5);
+      const canWalk=inside&&!blocked&&walkable(px,py);
+      grid[gy][gx]={walk:canWalk,clean:false};if(canWalk)total++;
+    }
+  }
+  robot={x:rooms[0].x+rooms[0].w/2,y:rooms[0].y+rooms[0].h/2,r:13,angle:0,moving:false,tx:0,ty:0};
+  for(let t=0;t<60;t++){
+    let sx=rooms[0].x+robot.r+12+rand()*Math.max(1,rooms[0].w-(robot.r+12)*2);
+    let sy=rooms[0].y+robot.r+12+rand()*Math.max(1,rooms[0].h-(robot.r+12)*2);
+    let gx=Math.floor(sx/T),gy=Math.floor(sy/T),{x:cx,y:cy}=tileCenter(gx,gy);
+    if(grid[gy]?.[gx]?.walk&&walkable(cx,cy)){robot.x=cx;robot.y=cy;break;}
+  }
+  elapsed=0;ended=false;keys={};stick={x:0,y:0,active:false};
+}
+function hitsSharedWall(x,y,rad){
+  const {splitX,splitY,padY,totalH,padX,totalW,span,topY,botY,leftX,rightX}=doors;
+  const half=Math.max(0,span/2-rad);
+  // Top shared vertical wall (padY .. splitY)
+  if(y>=padY&&y<=splitY&&Math.abs(x-splitX)<rad){
+    if(Math.abs(y-topY)>half)return true;
+  }
+  // Bottom shared vertical wall (splitY .. padY+totalH)
+  if(y>=splitY&&y<=padY+totalH&&Math.abs(x-splitX)<rad){
+    if(Math.abs(y-botY)>half)return true;
+  }
+  // Left shared horizontal wall (padX .. splitX)
+  if(x>=padX&&x<=splitX&&Math.abs(y-splitY)<rad){
+    if(Math.abs(x-leftX)>half)return true;
+  }
+  // Right shared horizontal wall (splitX .. padX+totalW)
+  if(x>=splitX&&x<=padX+totalW&&Math.abs(y-splitY)<rad){
+    if(Math.abs(x-rightX)>half)return true;
+  }
+  return false;
+}
+
+function resize(){canvas.width=Math.max(1,innerWidth*devicePixelRatio);canvas.height=Math.max(1,innerHeight*devicePixelRatio);}window.addEventListener('resize',resize);resize();rebuild();
+
+function walkableOLD(x, y) {
+  const inSpace = rooms.some(r => x >= r.x + 2 && x <= r.x + r.w - 2 && y >= r.y + 2 && y <= r.y + r.h - 2);
+  const nearWall = !rooms.some(r => x > r.x + robot.r && x < r.x + r.w - robot.r && y > r.y + robot.r && y < r.y + r.h - robot.r);
+  const hitFurniture = furniture.some(o => x + robot.r > o.x && x - robot.r < o.x + o.w && y + robot.r > o.y && y - robot.r < o.y + o.h);
+  return inSpace && !nearWall && !hitFurniture;
+}
+function walkable(x,y){
+  const {padX,padY,totalW,totalH}=doors,r=robot.r;
+  if(x<padX+r||x>padX+totalW-r||y<padY+r||y>padY+totalH-r)return false;
+  if(hitsSharedWall(x,y,r))return false;
+  return !furniture.some(o=>x+r>o.x&&x-r<o.x+o.w&&y+r>o.y&&y-r<o.y+o.h);
+}
+
+function updateGame(dt){
+	if(ended)return;
+	elapsed+=dt;
+	let dx=stick.active?stick.x:0,dy=stick.active?stick.y:0;
+	if(keys.ArrowLeft||keys.a)dx--;
+	if(keys.ArrowRight||keys.d)dx++;
+	if(keys.ArrowUp||keys.w)dy--;
+	if(keys.ArrowDown||keys.s)dy++;
+	let m=Math.hypot(dx,dy);
+	if(m>1){dx/=m;dy/=m;}
+	
+	// movement
+	let curGx = Math.floor(robot.x / T), curGy = Math.floor(robot.y / T);
+	let {x:curCx,y:curCy}=tileCenter(curGx,curGy);
+	
+	// Ensuring robot is always aligned to its tile center whenever !robot.moving guarantees zero drift
+	if (!robot.moving) {
+	  robot.x = curCx;
+	  robot.y = curCy;
+	}
+
+	if (!robot.moving) {
+	  let stepX = 0, stepY = 0;
+	  if (Math.abs(dx) > 0.25 || Math.abs(dy) > 0.25) {
+		if (Math.abs(dx) >= Math.abs(dy)) stepX = Math.sign(dx);
+		else stepY = Math.sign(dy);
+	  }
+	  if (stepX !== 0 || stepY !== 0) {
+		robot.angle = Math.atan2(stepY, stepX);
+		let nextGx = curGx + stepX, nextGy = curGy + stepY;
+		let {x:nextCx,y:nextCy}=tileCenter(nextGx,nextGy);
+		if (grid[nextGy]?.[nextGx]?.walk && walkable(nextCx, nextCy)) {
+		  robot.moving = true;
+		  robot.tx = nextCx;
+		  robot.ty = nextCy;
+		} else {
+		  // Center on current tile if slightly off-center against a wall/furniture
+		  robot.x = curCx;
+		  robot.y = curCy;
+		}
+	  }
+	}
+
+	if (robot.moving) {
+	  let speed = 185, step = speed * dt;
+	  let diffX = robot.tx - robot.x, diffY = robot.ty - robot.y;
+	  let dist = Math.hypot(diffX, diffY);
+	  if (dist <= step) {
+		robot.x = robot.tx;
+		robot.y = robot.ty;
+		robot.moving = false;
+	  } else {
+		robot.x += (diffX / dist) * step;
+		robot.y += (diffY / dist) * step;
+	  }
+	}
+	
+	let gx=Math.floor(robot.x/T),gy=Math.floor(robot.y/T);
+	if(grid[gy]?.[gx]?.walk&&!grid[gy][gx].clean){grid[gy][gx].clean=true;cleaned++;}
+	
+	if(elapsed>=30)ended=true;
+}
+
+function handleInput(e){if(!e)return;if(e.type==='DIRECTIONAL_VECTOR'){stick={x:e.x||0,y:e.y||0,active:!!e.active};}else if(e.type==='ACTION_SECONDARY'){stick={x:0,y:0,active:false};}else if(e.type==='ACTION_PRIMARY'){let tx=(e.x||0)*canvas.width,ty=(e.y||0)*canvas.height;let scale=Math.min(canvas.width/(W+30),canvas.height/(H+130)),ox=(canvas.width-W*scale)/2,oy=(canvas.height-H*scale)/2;let px=(tx-ox)/scale,py=(ty-oy)/scale;stick={x:Math.sign(px-robot.x),y:Math.sign(py-robot.y),active:true};}}
+function onEndGame(){ended=true;stick.active=false;}
+function getResult(){let p=total?100*cleaned/total:0;return{score:Math.round(p*10),timeElapsed:Math.min(elapsed,30),completionPercent:p,customData:{cleanedCells:cleaned,totalCells:total,rooms:4}};}
+function renderAll(c){
+	let cw=c.canvas.width,ch=c.canvas.height,dpr=devicePixelRatio||1,s=Math.min(cw/(W+30*dpr),ch/(H+120*dpr)),ox=(cw-W*s)/2,oy=(ch-H*s)/2+12*dpr;c.setTransform(1,0,0,1,0,0);c.fillStyle='#101827';c.fillRect(0,0,cw,ch);c.translate(ox,oy);c.scale(s,s);
+	
+	/*for(let r of rooms){
+		c.fillStyle=r.name==='HALL'||r.name==='CONNECTOR'||r.name==='CROSS HALL'?'#354357':'#263449';c.fillRect(r.x,r.y,r.w,r.h);c.strokeStyle='#73839a';c.lineWidth=4;c.strokeRect(r.x,r.y,r.w,r.h);
+	}*/
+	for(let r of rooms){
+		c.fillStyle='#263449';c.fillRect(r.x,r.y,r.w,r.h);
+	}
+	const {splitX,splitY,padX,padY,totalW,totalH,span,topY,botY,leftX,rightX}=doors,hSpan=span/2;
+	c.strokeStyle='#73839a';c.lineWidth=4;c.beginPath();
+	// Outer perimeter
+	c.rect(padX,padY,totalW,totalH);
+	// Top shared vertical wall segments
+	c.moveTo(splitX,padY);c.lineTo(splitX,Math.max(padY,topY-hSpan));
+	c.moveTo(splitX,Math.min(splitY,topY+hSpan));c.lineTo(splitX,splitY);
+	// Bottom shared vertical wall segments
+	c.moveTo(splitX,splitY);c.lineTo(splitX,Math.max(splitY,botY-hSpan));
+	c.moveTo(splitX,Math.min(padY+totalH,botY+hSpan));c.lineTo(splitX,padY+totalH);
+	// Left shared horizontal wall segments
+	c.moveTo(padX,splitY);c.lineTo(Math.max(padX,leftX-hSpan),splitY);
+	c.moveTo(Math.min(splitX,leftX+hSpan),splitY);c.lineTo(splitX,splitY);
+	// Right shared horizontal wall segments
+	c.moveTo(splitX,splitY);c.lineTo(Math.max(splitX,rightX-hSpan),splitY);
+	c.moveTo(Math.min(padX+totalW,rightX+hSpan),splitY);c.lineTo(padX+totalW,splitY);
+	c.stroke();
+
+for(let y=0;y<grid.length;y++) for(let x=0;x<grid[y].length;x++){
+	let q=grid[y][x];
+	if(q.walk&&q.clean){
+		c.fillStyle='#39c9a3';c.globalAlpha=.45;c.fillRect(x*T,y*T,T,T);c.globalAlpha=1;
+	}
+}
+for(let o of furniture){c.fillStyle='#56667b';c.fillRect(o.x,o.y,o.w,o.h);c.fillStyle='#74859b';c.fillRect(o.x+4,o.y+4,o.w-8,o.h-8);c.strokeStyle='#303d50';c.lineWidth=2;c.strokeRect(o.x,o.y,o.w,o.h);}
+for(let r of rooms)if(['LIVING','KITCHEN','BEDROOM','STUDY'].includes(r.name)){c.fillStyle='#d7e3f4';c.font='bold 14px system-ui';c.fillText(r.name,r.x+10,r.y+22);}
+c.fillStyle='rgba(0,0,0,.25)';c.beginPath();c.arc(robot.x+3,robot.y+4,robot.r+2,0,Math.PI*2);c.fill();c.fillStyle='#f8fafc';c.beginPath();c.arc(robot.x,robot.y,robot.r,0,Math.PI*2);c.fill();c.strokeStyle='#22b89a';c.lineWidth=4;c.stroke();c.fillStyle='#22b89a';c.beginPath();c.arc(robot.x+Math.cos(robot.angle)*9,robot.y+Math.sin(robot.angle)*9,3.5,0,Math.PI*2);c.fill();
+c.setTransform(1,0,0,1,0,0);let p=total?cleaned/total:0;c.fillStyle='#f2f6ff';c.textAlign='center';c.font=`bold ${18*dpr}px system-ui`;c.fillText('ROBOSWEEP',cw/2,30*dpr);c.font=`${14*dpr}px system-ui`;c.fillText(`${(p*100).toFixed(1)}% CLEAN  •  ${Math.max(0,30-elapsed).toFixed(1)}s`,cw/2,54*dpr);let bw=Math.min(cw*.7,280*dpr),bh=10*dpr,bx=(cw-bw)/2,by=68*dpr;c.fillStyle='#334155';c.fillRect(bx,by,bw,bh);c.fillStyle='#39c9a3';c.fillRect(bx,by,bw*p,bh);c.font=`${12*dpr}px system-ui`;c.fillStyle='#b5c3d7';c.fillText('WASD / ARROWS to drive  •  drag to steer',cw/2,ch-20*dpr);if(ended){c.fillStyle='rgba(9,14,24,.8)';c.fillRect(0,0,cw,ch);c.fillStyle='#fff';c.font=`bold ${28*dpr}px system-ui`;c.fillText('CLEANING COMPLETE',cw/2,ch/2-16*dpr);c.font=`bold ${23*dpr}px system-ui`;c.fillText(`${(p*100).toFixed(1)}% COVERAGE`,cw/2,ch/2+24*dpr);}c.textAlign='left';}
+window.initGame=()=>rebuild();window.updateGame=updateGame;window.handleInput=handleInput;window.renderAll=renderAll;window.getResult=getResult;window.onEndGame=onEndGame;
+window.addEventListener('keydown',e=>{keys[e.key]=true;keys[e.key.toLowerCase()]=true;});window.addEventListener('keyup',e=>{keys[e.key]=false;keys[e.key.toLowerCase()]=false;});
+
+// Standalone preview loop. The MiniGames host can call the same API functions as usual.
+let last=performance.now();
+function frame(now){
+let dt=Math.min(.05,(now-last)/1000||0);last=now;updateGame(dt);renderAll(ctx);requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body></html>
